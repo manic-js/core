@@ -1,0 +1,86 @@
+{
+  "name": "manicjs",
+  "version": "0.3.0",
+  "description": "Stupidly fast, Crazy light React framework powered by Bun and Elysia",
+  "type": "module",
+  "license": "GPL-3.0",
+  "author": "Rahuletto",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rahuletto/manic"
+  },
+  "keywords": [
+    "react",
+    "bun",
+    "elysia",
+    "framework",
+    "fullstack",
+    "hmr"
+  ],
+  "bin": {
+    "manic": "./src/cli/index.ts"
+  },
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "import": "./index.ts"
+    },
+    "./router": {
+      "types": "./src/router/index.ts",
+      "import": "./src/router/index.ts"
+    },
+    "./plugins": {
+      "types": "./src/plugins/index.ts",
+      "import": "./src/plugins/index.ts"
+    },
+    "./server": {
+      "types": "./src/server/index.ts",
+      "import": "./src/server/index.ts"
+    },
+    "./config": {
+      "types": "./src/config/index.ts",
+      "import": "./src/config/index.ts"
+    },
+    "./theme": {
+      "types": "./src/theme/index.ts",
+      "import": "./src/theme/index.ts"
+    },
+    "./env": {
+      "types": "./src/env/client.ts",
+      "import": "./src/env/client.ts"
+    },
+    "./transitions": {
+      "types": "./src/transitions/index.ts",
+      "import": "./src/transitions/index.ts"
+    }
+  },
+  "files": [
+    "index.ts",
+    "src/**/*",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "dependencies": {
+    "@elysiajs/static": "^1.4.7",
+    "@elysiajs/swagger": "^1.3.1",
+    "bun-plugin-tailwind": "^0.1.2",
+    "colorette": "^2.0.20",
+    "elysia": "^1.3.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}
