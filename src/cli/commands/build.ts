@@ -1,4 +1,4 @@
-import { green, red, dim, bold, cyan } from "colorette";
+import { green, red, dim, bold, cyan, yellow } from "colorette";
 import {
   rmSync,
   mkdirSync,
@@ -175,7 +175,6 @@ export async function build() {
 
   process.stdout.write(dim("● Generating server..."));
 
-  // Load project environment variables to embed their keys in the server bundle
   await import("../../env").then((m) => m.loadEnvFiles());
   const projectEnvKeys = await import("../../env").then((m) =>
     m.getLoadedEnvKeys()
@@ -332,5 +331,107 @@ console.log(\`\\n\\t\\t\\x1b[32mReady\\x1b[0m\\n\`);
 
   console.log(dim(`Built in ${formatTime(buildTime)}`));
   console.log(dim(`Output: ${dist}/`));
+
+  if (process.env.VERCEL === "1") {
+    process.stdout.write(dim("● Exporting to Vercel..."));
+    const vDist = ".vercel/output";
+    rmSync(vDist, { recursive: true, force: true });
+    mkdirSync(`${vDist}/static`, { recursive: true });
+    mkdirSync(`${vDist}/functions/index.func`, { recursive: true });
+
+    cpSync(`${dist}/client`, `${vDist}/static`, { recursive: true });
+
+    const vConfig = {
+      version: 3,
+      routes: [
+        { handle: "filesystem" },
+        { src: "/api/(.*)", dest: "/index" },
+        { src: "/docs(.*)", dest: "/index" },
+        { src: "/(.*)", dest: "/index.html" },
+      ],
+    };
+    await Bun.write(`${vDist}/config.json`, JSON.stringify(vConfig, null, 2));
+
+    const vFunctionConfig = {
+      runtime: "nodejs20.x",
+      handler: "index.js",
+      launcherType: "Nodejs",
+      shouldAddHelpers: false,
+    };
+    await Bun.write(
+      `${vDist}/functions/index.func/.vc-config.json`,
+      JSON.stringify(vFunctionConfig, null, 2)
+    );
+
+    const vServerCode = `import { Elysia } from "elysia";
+import { swagger } from "@elysiajs/swagger";
+import { existsSync, readdirSync } from "fs";
+import { join } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
+const app = new Elysia();
+
+const apiPath = join(__dirname, ".manic/api");
+if (existsSync(apiPath)) {
+  const files = readdirSync(apiPath);
+  for (const file of files) {
+    if (file.endsWith(".js")) {
+      const mod = await import(\`file://\${join(apiPath, file)}\`);
+      if (mod.default) {
+        const route = file === "root.js" ? "" : "/" + file.replace(".js", "");
+        app.group(\`/api\${route}\`, (g) => g.use(mod.default));
+      }
+    }
+  }
+}
+
+if (${config.swagger !== false}) {
+  app.use(swagger({ 
+    path: "${docsPath}",
+    exclude: ["/", "/assets", "/favicon.ico", "/api/docs", "${docsPath}"],
+    documentation: {
+      info: {
+        title: "${
+          config.swagger?.documentation?.info?.title ??
+          config.app?.name ??
+          "Manic API"
+        }",
+        description: "${
+          config.swagger?.documentation?.info?.description ??
+          "API documentation powered by Manic"
+        }",
+        version: "${config.swagger?.documentation?.info?.version ?? "1.0.0"}"
+      }
+    }
+  }));
+}
+
+export default async function handler(req) {
+  return app.handle(req);
+};`;
+
+    await Bun.write(`${vDist}/functions/index.func/index.js`, vServerCode);
+
+    mkdirSync(`${vDist}/functions/index.func/.manic/api`, { recursive: true });
+    if (existsSync(`${dist}/api`)) {
+      cpSync(`${dist}/api`, `${vDist}/functions/index.func/.manic/api`, {
+        recursive: true,
+      });
+    }
+
+    await Bun.build({
+      entrypoints: [`${vDist}/functions/index.func/index.js`],
+      outdir: `${vDist}/functions/index.func`,
+      target: "node",
+      format: "esm",
+      minify: true,
+      external: ["fs", "path", "os", "url"],
+    });
+
+    process.stdout.write(`\r${dim(green("● Exporting to Vercel... done"))}\n`);
+    console.log(yellow(bold("\nℹ Vercel Build Output API initialized")));
+  }
+
   console.log(dim(`Start: ${green("bun start")}\n`));
 }
