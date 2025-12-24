@@ -29,10 +29,12 @@ ${bold("Options:")}
   -h, --help        Show this help message
   -v, --version     Show version number
   -p, --port PORT   Specify port
+  --network         Expose to network (dev only)
 
 ${bold("Examples:")}
   ${blue("manic")} dev
   ${blue("manic")} dev --port 3000
+  ${blue("manic")} dev --network
   ${blue("manic")} build
   ${blue("manic")} start
 `;
@@ -61,9 +63,10 @@ async function main(): Promise<void> {
     args.indexOf("--port") > -1 ? args.indexOf("--port") : args.indexOf("-p");
   const portArg = portIndex > -1 ? args[portIndex + 1] : undefined;
   const port = portArg ? parseInt(portArg, 10) : undefined;
+  const network = args.includes("--network");
 
   try {
-    await commands[command]({ port });
+    await commands[command]({ port, network });
   } catch (error) {
     console.error(red(`Error running ${command}:`));
     console.error(error);

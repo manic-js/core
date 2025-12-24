@@ -43,10 +43,14 @@ export async function createManicServer(
   await writeRoutesManifest();
 
   const config = await loadConfig();
-  const { app: apiApp } = await apiLoaderPlugin();
+  const { app: apiApp, routes: apiRoutes } = await apiLoaderPlugin();
   const routes = await discoverRoutes();
   const favicon = await discoverFavicon();
-  const port = options.port ?? config.server?.port ?? 6070;
+  const envPort = process.env.PORT ? parseInt(process.env.PORT, 10) : undefined;
+  const port = options.port ?? envPort ?? config.server?.port ?? 6070;
+  const hostname =
+    process.env.HOST ||
+    (process.env.NETWORK === "true" ? "0.0.0.0" : "localhost");
   const envKeys = getLoadedEnvKeys();
 
   if (config.router?.viewTransitions !== undefined) {
@@ -58,6 +62,13 @@ export async function createManicServer(
     apiApp.use(
       swagger({
         path: swaggerConfig.path ?? "/docs",
+        exclude: [
+          "/",
+          "/assets",
+          "/favicon.ico",
+          "/api/docs",
+          swaggerConfig.path ?? "/docs",
+        ],
         documentation: {
           info: {
             title:
@@ -108,6 +119,7 @@ export async function createManicServer(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const server = Bun.serve({
     port,
+    hostname,
     routes: bunRoutes,
     fetch: () => new Response("Not Found", { status: 404 }),
     development:
@@ -120,7 +132,9 @@ export async function createManicServer(
 
   const duration = Math.round(performance.now() - startTime);
   const serverPort = server.port ?? port;
-  const url = `http://localhost:${serverPort}/`;
+  const protocol = "http";
+  const displayHost = hostname === "0.0.0.0" ? "localhost" : hostname;
+  const url = `${protocol}://${displayHost}:${serverPort}/`;
   const docsPath =
     config.swagger !== false ? config.swagger?.path ?? "/docs" : null;
 
@@ -134,6 +148,21 @@ export async function createManicServer(
 
   console.log(`\n\t\t${cyan(bold("URL"))}:      ${green(url)}`);
 
+  if (process.env.NETWORK === "true") {
+    const nets = await import("os").then((os) => os.networkInterfaces());
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] ?? []) {
+        if (net.family === "IPv4" && !net.internal) {
+          console.log(
+            `\t\t${cyan(bold("Network"))}:  ${green(
+              `http://${net.address}:${serverPort}/`
+            )}`
+          );
+        }
+      }
+    }
+  }
+
   if (docsPath) {
     console.log(
       `\t\t${cyan(bold("Docs"))}:     ${green(url.slice(0, -1) + docsPath)}`
@@ -143,10 +172,13 @@ export async function createManicServer(
   console.log(`\n\t\t${green("Ready in")} ${bold(duration + "ms")}`);
 
   if (envKeys.length > 0) {
-    console.log(`\n\t\t${dim(gray(`Injected env from ${bold(".env")}`))}`);
-    envKeys.forEach((key) => {
-      console.log(`\t\t${yellow(`└─ ${key} = ****************`)}`);
-    });
+    const publicEnvs = envKeys.filter((k) => k.startsWith("PUBLIC_")).length;
+    const privateEnvs = envKeys.length - publicEnvs;
+    console.log(
+      `\n\t\t${dim(gray(`Loaded ${bold(envKeys.length)} env vars`))} ${dim(
+        `(${publicEnvs} public, ${privateEnvs} private)`
+      )}`
+    );
   }
 
   console.log("");
