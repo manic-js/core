@@ -1,21 +1,36 @@
-import { createElement, useEffect, useState, type ComponentType } from "react";
+import {
+  createElement,
+  useEffect,
+  useState,
+  useMemo,
+  Suspense,
+  lazy,
+  type ComponentType,
+} from "react";
 import { NotFound } from "../../components/NotFound";
 import { RouterContext } from "./context";
 import { matchRoute } from "./matcher";
 import { navigate } from "./Link";
 import type { RouteDef } from "./types";
 
+interface RouteModule {
+  default: ComponentType;
+}
+
+type RouteLoader = () => Promise<RouteModule>;
+
 declare global {
   interface Window {
-    __MANIC_ROUTES__?: Record<string, { default: ComponentType }>;
+    __MANIC_ROUTES__?: Record<string, RouteLoader | RouteModule>;
   }
 }
 
 function useQueryParams(): URLSearchParams {
-  const [params, setParams] = useState(() =>
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search)
-      : new URLSearchParams()
+  const [params, setParams] = useState(
+    () =>
+      new URLSearchParams(
+        typeof window !== "undefined" ? window.location.search : ""
+      )
   );
 
   useEffect(() => {
@@ -30,14 +45,15 @@ function useQueryParams(): URLSearchParams {
 
 export { useQueryParams };
 
-interface RouteModule {
-  default: ComponentType;
-}
+// Cache for lazy components
+const lazyCache = new Map<string, ComponentType>();
 
 export function Router({
   routes: manualRoutes,
+  loading: LoadingComponent,
 }: {
-  routes?: Record<string, RouteModule>;
+  routes?: Record<string, RouteLoader | RouteModule>;
+  loading?: ComponentType;
 }): React.ReactElement {
   const [currentPath, setCurrentPath] = useState(
     typeof window !== "undefined" ? window.location.pathname : "/"
@@ -52,38 +68,61 @@ export function Router({
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  const rawRoutes: Record<string, RouteModule> =
-    manualRoutes ??
-    (typeof window !== "undefined" ? window.__MANIC_ROUTES__ ?? {} : {});
+  const rawRoutes = useMemo(() => {
+    return (
+      manualRoutes ??
+      (typeof window !== "undefined" ? window.__MANIC_ROUTES__ ?? {} : {})
+    );
+  }, [manualRoutes]);
 
-  const routeDefs: RouteDef[] = Object.entries(rawRoutes)
-    .map(([path, mod]) => ({
-      path: path || "/",
-      component: mod.default,
-    }))
-    .sort((a, b) => {
-      const aIsDynamic = a.path.includes(":") || a.path.includes("[");
-      const bIsDynamic = b.path.includes(":") || b.path.includes("[");
-      if (aIsDynamic && !bIsDynamic) return 1;
-      if (!aIsDynamic && bIsDynamic) return -1;
-      return b.path.length - a.path.length;
-    });
+  const routeDefs: RouteDef[] = useMemo(() => {
+    return Object.entries(rawRoutes)
+      .map(([path, loader]) => {
+        let Component: ComponentType;
+
+        if (typeof loader === "function") {
+          const pathKey = path || "/";
+          if (!lazyCache.has(pathKey)) {
+            lazyCache.set(pathKey, lazy(loader as RouteLoader));
+          }
+          Component = lazyCache.get(pathKey)!;
+        } else {
+          Component = (loader as RouteModule).default;
+        }
+
+        return {
+          path: path || "/",
+          component: Component,
+        };
+      })
+      .sort((a, b) => {
+        const aIsDynamic = a.path.includes(":") || a.path.includes("[");
+        const bIsDynamic = b.path.includes(":") || b.path.includes("[");
+        if (aIsDynamic && !bIsDynamic) return 1;
+        if (!aIsDynamic && bIsDynamic) return -1;
+        return b.path.length - a.path.length;
+      });
+  }, [rawRoutes]);
 
   const match = matchRoute(currentPath, routeDefs);
   const Component = match?.component;
   const params = match?.params ?? {};
 
-  if (!Component) {
+  const content = useMemo(() => {
+    if (!Component) {
+      return createElement(NotFound);
+    }
+
     return createElement(
-      RouterContext.Provider,
-      { value: { path: currentPath, navigate, params: {} } },
-      createElement(NotFound, null)
+      Suspense,
+      { fallback: LoadingComponent ? createElement(LoadingComponent) : null },
+      createElement(Component, null)
     );
-  }
+  }, [Component, LoadingComponent]);
 
   return createElement(
     RouterContext.Provider,
     { value: { path: currentPath, navigate, params } },
-    createElement(Component, null)
+    content
   );
 }

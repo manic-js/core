@@ -56,13 +56,28 @@ export function Link({
     navigate(to);
   };
 
+  const handleMouseEnter = () => {
+    if (typeof window !== "undefined" && window.__MANIC_ROUTES__) {
+      const loader = window.__MANIC_ROUTES__[to];
+      if (typeof loader === "function") {
+        loader();
+      }
+    }
+  };
+
   const linkStyle: CSSProperties = viewTransitionName
     ? { ...style, viewTransitionName }
     : style || {};
 
   return createElement(
     "a",
-    { href: to, className, style: linkStyle, onClick: handleClick },
+    {
+      href: to,
+      className,
+      style: linkStyle,
+      onClick: handleClick,
+      onMouseEnter: handleMouseEnter,
+    },
     children
   );
 }
