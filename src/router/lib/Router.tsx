@@ -45,7 +45,6 @@ function useQueryParams(): URLSearchParams {
 
 export { useQueryParams };
 
-// Cache for lazy components
 const lazyCache = new Map<string, ComponentType>();
 
 export function Router({

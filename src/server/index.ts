@@ -29,21 +29,18 @@ export interface ManicServerOptions {
   port?: number;
 }
 
-export interface ManicServer {
-  port: number;
-}
-
 export async function createManicServer(
   options: ManicServerOptions
-): Promise<ManicServer> {
+): Promise<Elysia> {
   const startTime = performance.now();
-  const prod = process.env.NODE_ENV === "production";
+  const nodeEnv = process.env["NODE_ENV"];
+  const prod = nodeEnv === "production";
 
   await loadEnvFiles();
   await writeRoutesManifest();
 
   const config = await loadConfig();
-  const { app: apiApp, routes: apiRoutes } = await apiLoaderPlugin();
+  const { app: apiApp } = await apiLoaderPlugin();
   const routes = await discoverRoutes();
   const favicon = await discoverFavicon();
   const envPort = process.env.PORT ? parseInt(process.env.PORT, 10) : undefined;
@@ -87,19 +84,43 @@ export async function createManicServer(
 
   apiApp.use(staticPlugin({ assets: "assets", prefix: "/assets" }));
 
+  if (prod) {
+    const dist = config.build?.outdir ?? ".manic";
+    apiApp.use(
+      staticPlugin({
+        assets: `${dist}/client`,
+        prefix: "/",
+        headers: {
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+      })
+    );
+  }
+
   if (favicon) {
     apiApp.get("/favicon.ico", () =>
       Bun.file(`assets/${favicon.split("/").pop()}`)
     );
   }
 
+  const htmlHandler =
+    typeof options.html === "string"
+      ? () =>
+          new Response(options.html as string, {
+            headers: {
+              "content-type": "text/html",
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+            },
+          })
+      : options.html;
+
   const bunRoutes: Record<string, unknown> = {
-    "/": options.html,
+    "/": htmlHandler,
   };
 
   for (const route of routes) {
     if (route.path !== "/") {
-      bunRoutes[route.path] = options.html;
+      bunRoutes[route.path] = htmlHandler;
     }
   }
 
@@ -114,9 +135,21 @@ export async function createManicServer(
     bunRoutes[`${docsPath}/*`] = (req: Request) => apiApp.handle(req);
   }
 
-  bunRoutes["/*"] = options.html;
+  bunRoutes["/*"] = (req: Request) => {
+    const url = new URL(req.url);
+    const hasExtension = url.pathname
+      .slice(url.pathname.lastIndexOf("/"))
+      .includes(".");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (prod && hasExtension) {
+      return apiApp.handle(req);
+    }
+
+    return typeof htmlHandler === "function"
+      ? (htmlHandler as Function)()
+      : htmlHandler;
+  };
+
   const server = Bun.serve({
     port,
     hostname,
@@ -124,7 +157,7 @@ export async function createManicServer(
     fetch: () => new Response("Not Found", { status: 404 }),
     development:
       !prod && config.server?.hmr !== false ? { hmr: true } : undefined,
-  } as any);
+  });
 
   if (!prod) {
     watchRoutes("app/routes", logRouteChange).catch(() => {});
@@ -183,5 +216,5 @@ export async function createManicServer(
 
   console.log("");
 
-  return { port: serverPort };
+  return apiApp;
 }

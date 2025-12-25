@@ -58,22 +58,14 @@ export async function generateRoutesManifest(
 ): Promise<string> {
   const routes = await discoverRoutes(routesDir);
 
-  const imports = routes
-    .map((r, i) => {
-      const importPath = `./${r.filePath.replace("app/", "")}`;
-      return `import Route${i} from "${importPath}";`;
-    })
-    .join("\n");
-
   const routeEntries = routes
-    .map((r, i) => {
-      return `  "${r.path}": { default: Route${i} },`;
+    .map((r) => {
+      const importPath = `./${r.filePath.replace("app/", "")}`;
+      return `  "${r.path}": () => import("${importPath}"),`;
     })
     .join("\n");
 
-  return `${imports}
-
-export const routes = {
+  return `export const routes = {
 ${routeEntries}
 };
 `;
