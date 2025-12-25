@@ -15,7 +15,7 @@ export async function deploy() {
   }
 
   const provider = config.providers[0];
-  if(!provider) {
+  if (!provider) {
     console.log(yellow(`■ No provider configured in manic.config.ts`));
     console.log(dim("Add a provider to generate config file:"));
     console.log(cyan('\n  import { vercel } from "@manicjs/providers";\n'));
@@ -38,12 +38,18 @@ export async function deploy() {
     string,
     { configFile: string; command: string }
   > = {
-    vercel: { configFile: "vercel.json", command: "vercel deploy" },
+    vercel: {
+      configFile: "vercel.json",
+      command: "bunx vercel deploy",
+    },
     cloudflare: {
       configFile: "wrangler.toml",
-      command: "wrangler pages deploy dist",
+      command: "bunx wrangler pages deploy dist",
     },
-    netlify: { configFile: "netlify.toml", command: "netlify deploy --prod" },
+    netlify: {
+      configFile: "netlify.toml",
+      command: "bunx netlify deploy --prod",
+    },
   };
 
   const deployInfo = deployCommands[provider.name];
@@ -78,20 +84,34 @@ directory = "./dist"
       const netlifyToml = `[build]
   command = "bun run build"
   publish = "dist"
+  functions = "netlify/functions"
 
-[[edge_functions]]
-  function = "api"
-  path = "/api/*"
+[functions]
+  node_bundler = "none"
+
+# API routes -> serverless function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api"
+  status = 200
 
 ${
   docsPath
-    ? `[[edge_functions]]
-  function = "api"
-  path = "${docsPath}/*"
+    ? `# Docs routes -> serverless function
+[[redirects]]
+  from = "${docsPath}"
+  to = "/.netlify/functions/api"
+  status = 200
+
+[[redirects]]
+  from = "${docsPath}/*"
+  to = "/.netlify/functions/api"
+  status = 200
 
 `
     : ""
-}[[redirects]]
+}# SPA fallback
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
