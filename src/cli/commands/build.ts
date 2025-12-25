@@ -1,4 +1,4 @@
-import { green, red, dim, bold, cyan, yellow } from "colorette";
+import { green, red, dim, bold } from "colorette";
 import {
   rmSync,
   mkdirSync,
@@ -95,7 +95,6 @@ export async function build() {
   if (existsSync(htmlPath)) {
     html = await Bun.file(htmlPath).text();
 
-    // Replace CSS Link
     if (cssFile) {
       if (html.includes('href="tailwindcss"')) {
         html = html.replace('href="tailwindcss"', `href="/${cssFile}"`);
@@ -107,7 +106,6 @@ export async function build() {
       }
     }
 
-    // Replace Script Entry
     if (html.includes('src="./main.tsx"')) {
       html = html.replace('src="./main.tsx"', `src="/${jsFile}"`);
     } else if (html.includes('src="/main.tsx"')) {
@@ -119,7 +117,6 @@ export async function build() {
       );
     }
   } else {
-    // Fallback template
     html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -137,7 +134,6 @@ export async function build() {
 
   await Bun.write(`${dist}/client/index.html`, html);
 
-  // API build
   const apiDir = "app/api";
   const apiEntries: string[] = [];
   if (existsSync(apiDir)) {
@@ -160,7 +156,7 @@ export async function build() {
           outdir: `${dist}/api`,
           target: "bun",
           minify: true,
-          external: ["*"], // Keep API bundles small, resolve at runtime
+          external: ["*"],
           naming: `${outName}.js`,
         });
       }
@@ -170,134 +166,53 @@ export async function build() {
     }
   }
 
-  const docsPath =
-    config.swagger !== false ? config.swagger?.path ?? "/docs" : null;
+  process.stdout.write(dim("● Bundling server..."));
 
-  process.stdout.write(dim("● Generating server..."));
+  const serverEntry = "~manic.ts";
+  if (!existsSync(serverEntry)) {
+    console.error(
+      red(`\n✗ ${serverEntry} not found. Create your server entry file.\n`)
+    );
+    process.exit(1);
+  }
 
-  await import("../../env").then((m) => m.loadEnvFiles());
-  const projectEnvKeys = await import("../../env").then((m) =>
-    m.getLoadedEnvKeys()
+  let serverCode = await Bun.file(serverEntry).text();
+
+  serverCode = serverCode.replace(
+    /import\s+\w+\s+from\s+["']\.\/app\/index\.html["'];?/,
+    `const html = await Bun.file("${dist}/client/index.html").text();`
   );
 
-  const serverCode = `import { Elysia } from "elysia";
-import { staticPlugin } from "@elysiajs/static";
-import { networkInterfaces } from "os";
-import { existsSync } from "node:fs";
-${
-  config.swagger !== false ? 'import { swagger } from "@elysiajs/swagger";' : ""
-}
+  serverCode = serverCode.replace(
+    /createManicServer\s*\(\s*\{\s*html:\s*\w+/,
+    `createManicServer({ html`
+  );
 
-const projectEnvKeys = ${JSON.stringify(projectEnvKeys)};
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : ${
-    config.server?.port ?? 6070
-  };
-const HOST = process.env.HOST || "0.0.0.0";
-const IS_NETWORK = process.env.NETWORK === "true";
+  const prodEntry = `${dist}/_entry.ts`;
+  await Bun.write(prodEntry, serverCode);
 
-const html = await Bun.file("./${dist}/client/index.html").text();
+  const serverBuild = await Bun.build({
+    entrypoints: [prodEntry],
+    outdir: dist,
+    target: "bun",
+    minify: true,
+    define: {
+      "process.env.NODE_ENV": JSON.stringify("production"),
+    },
+    naming: {
+      entry: "server.js",
+    },
+  });
 
-const app = new Elysia()
-  ${
-    config.swagger !== false
-      ? `.use(swagger({ 
-    path: "${docsPath}",
-    exclude: ["/", "/assets", "/favicon.ico", "/api/docs", "${docsPath}"],
-    documentation: {
-      info: {
-        title: "${
-          config.swagger?.documentation?.info?.title ??
-          config.app?.name ??
-          "Manic API"
-        }",
-        description: "${
-          config.swagger?.documentation?.info?.description ??
-          "API documentation powered by Manic"
-        }",
-        version: "${config.swagger?.documentation?.info?.version ?? "1.0.0"}"
-      }
-    }
-  }))`
-      : ""
+  rmSync(prodEntry, { force: true });
+
+  if (!serverBuild.success) {
+    console.error(red("\nServer build failed:"));
+    serverBuild.logs.forEach((l) => console.error(l));
+    process.exit(1);
   }
-  .use(staticPlugin({ assets: "./${dist}/client", prefix: "/" }));
 
-// Dynamic API loading
-const apiPath = "./${dist}/api";
-const loadedRoutes = [];
-if (existsSync(apiPath)) {
-  const { readdirSync } = await import("node:fs");
-  const files = readdirSync(apiPath);
-  for (const file of files) {
-    if (file.endsWith(".js")) {
-      const mod = await import(\`./api/\${file}\`);
-      if (mod.default) {
-        const route = file === "root.js" ? "" : "/" + file.replace(".js", "");
-        const mountPath = \`/api\${route}\`;
-        app.group(mountPath, (g) => g.use(mod.default));
-        loadedRoutes.push(mountPath);
-      }
-    }
-  }
-}
-
-app.get("/favicon.ico", () => {
-  for (const n of ["favicon.svg", "favicon.png", "icon.svg"]) {
-    const f = Bun.file(\`./${dist}/client/assets/\${n}\`);
-    if (f.size) return f;
-  }
-  return new Response(null, { status: 404 });
-});
-
-const server = Bun.serve({
-  port: PORT,
-  hostname: HOST,
-  fetch(req) {
-    const { pathname } = new URL(req.url);
-    const hasExt = pathname.includes(".") && !pathname.endsWith("/");
-    if (pathname.startsWith("/api") || pathname.startsWith("/docs") || hasExt) {
-      return app.handle(req);
-    }
-    return new Response(html, { headers: { "content-type": "text/html" } });
-  },
-});
-
-const url = \`http://localhost:\${PORT}/\`;
-
-console.log(\`
-
-
-\\t\\t\\x1b[31m\\x1b[1m■ MANIC\\x1b[0m            \\x1b[33m\\x1b[43m PROD \\x1b[0m\\x1b[33m Server\\x1b[0m
-\\t\\t--- --- --- --- --- ---  --- ---
-
-\\t\\t\\x1b[36m\\x1b[1mURL\\x1b[0m:      \\x1b[32m\${url}\\x1b[0m\`);
-
-if (IS_NETWORK) {
-  const nets = networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name] || []) {
-      if (net.family === "IPv4" && !net.internal) {
-        console.log(\`\\t\\t\\x1b[36m\\x1b[1mNetwork\\x1b[0m:  \\x1b[32mhttp://\${net.address}:\${PORT}/\\x1b[0m\`);
-      }
-    }
-  }
-}
-
-if (${docsPath ? "true" : "false"}) {
-  console.log(\`\\t\\t\\x1b[36m\\x1b[1mDocs\\x1b[0m:     \\x1b[32m\${url.slice(0, -1)}${docsPath}\\x1b[0m\`);
-}
-
-const presentEnvKeys = projectEnvKeys.filter(k => process.env[k] !== undefined);
-const publicEnvs = presentEnvKeys.filter(k => k.startsWith("PUBLIC_")).length;
-if (presentEnvKeys.length > 0) {
-  console.log(\`\\n\\t\\t\\x1b[90mLoaded \\x1b[1m\${presentEnvKeys.length}\\x1b[22m env vars\\x1b[0m \\x1b[90m(\${publicEnvs} public, \${presentEnvKeys.length - publicEnvs} private)\\x1b[0m\`);
-}
-
-console.log(\`\\n\\t\\t\\x1b[32mReady\\x1b[0m\\n\`);
-`;
-
-  await Bun.write(`${dist}/server.js`, serverCode);
-  process.stdout.write(`\r${dim(green("● Generating server... done"))}\n`);
+  process.stdout.write(`\r${dim(green("● Bundling server... done"))}\n`);
 
   const buildTime = performance.now() - buildStart;
   const clientSize = getDirSize(`${dist}/client`);
@@ -332,105 +247,17 @@ console.log(\`\\n\\t\\t\\x1b[32mReady\\x1b[0m\\n\`);
   console.log(dim(`Built in ${formatTime(buildTime)}`));
   console.log(dim(`Output: ${dist}/`));
 
-  if (process.env.VERCEL === "1") {
-    process.stdout.write(dim("● Exporting to Vercel..."));
-    const vDist = ".vercel/output";
-    rmSync(vDist, { recursive: true, force: true });
-    mkdirSync(`${vDist}/static`, { recursive: true });
-    mkdirSync(`${vDist}/functions/index.func`, { recursive: true });
-
-    cpSync(`${dist}/client`, `${vDist}/static`, { recursive: true });
-
-    const vConfig = {
-      version: 3,
-      routes: [
-        { handle: "filesystem" },
-        { src: "/api/(.*)", dest: "/index" },
-        { src: "/docs(.*)", dest: "/index" },
-        { src: "/(.*)", dest: "/index.html" },
-      ],
-    };
-    await Bun.write(`${vDist}/config.json`, JSON.stringify(vConfig, null, 2));
-
-    const vFunctionConfig = {
-      runtime: "nodejs20.x",
-      handler: "index.js",
-      launcherType: "Nodejs",
-      shouldAddHelpers: false,
-    };
-    await Bun.write(
-      `${vDist}/functions/index.func/.vc-config.json`,
-      JSON.stringify(vFunctionConfig, null, 2)
-    );
-
-    const vServerCode = `import { Elysia } from "elysia";
-import { swagger } from "@elysiajs/swagger";
-import { existsSync, readdirSync } from "fs";
-import { join } from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
-const app = new Elysia();
-
-const apiPath = join(__dirname, ".manic/api");
-if (existsSync(apiPath)) {
-  const files = readdirSync(apiPath);
-  for (const file of files) {
-    if (file.endsWith(".js")) {
-      const mod = await import(\`file://\${join(apiPath, file)}\`);
-      if (mod.default) {
-        const route = file === "root.js" ? "" : "/" + file.replace(".js", "");
-        app.group(\`/api\${route}\`, (g) => g.use(mod.default));
-      }
-    }
-  }
-}
-
-if (${config.swagger !== false}) {
-  app.use(swagger({ 
-    path: "${docsPath}",
-    exclude: ["/", "/assets", "/favicon.ico", "/api/docs", "${docsPath}"],
-    documentation: {
-      info: {
-        title: "${
-          config.swagger?.documentation?.info?.title ??
-          config.app?.name ??
-          "Manic API"
-        }",
-        description: "${
-          config.swagger?.documentation?.info?.description ??
-          "API documentation powered by Manic"
-        }",
-        version: "${config.swagger?.documentation?.info?.version ?? "1.0.0"}"
-      }
-    }
-  }));
-}
-
-export default async function handler(req) {
-  return app.handle(req);
-};`;
-
-    await Bun.write(`${vDist}/functions/index.func/index.js`, vServerCode);
-
-    mkdirSync(`${vDist}/functions/index.func/.manic/api`, { recursive: true });
-    if (existsSync(`${dist}/api`)) {
-      cpSync(`${dist}/api`, `${vDist}/functions/index.func/.manic/api`, {
-        recursive: true,
+  if (config.providers?.length) {
+    console.log("");
+    for (const provider of config.providers) {
+      await provider.build({
+        dist,
+        config,
+        apiEntries,
+        clientDir: `${dist}/client`,
+        serverFile: `${dist}/server.js`,
       });
     }
-
-    await Bun.build({
-      entrypoints: [`${vDist}/functions/index.func/index.js`],
-      outdir: `${vDist}/functions/index.func`,
-      target: "node",
-      format: "esm",
-      minify: true,
-      external: ["fs", "path", "os", "url"],
-    });
-
-    process.stdout.write(`\r${dim(green("● Exporting to Vercel... done"))}\n`);
-    console.log(yellow(bold("\nℹ Vercel Build Output API initialized")));
   }
 
   console.log(dim(`Start: ${green("bun start")}\n`));
