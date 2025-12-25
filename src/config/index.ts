@@ -9,6 +9,19 @@ export interface SwaggerConfig {
   };
 }
 
+export interface ManicProvider {
+  name: string;
+  build(context: BuildContext): Promise<void>;
+}
+
+export interface BuildContext {
+  dist: string;
+  config: ManicConfig;
+  apiEntries: string[];
+  clientDir: string;
+  serverFile: string;
+}
+
 export interface ManicConfig {
   app?: {
     name?: string;
@@ -33,6 +46,8 @@ export interface ManicConfig {
   };
 
   swagger?: SwaggerConfig | false;
+
+  providers?: ManicProvider[];
 }
 
 const DEFAULT_CONFIG: Required<ManicConfig> = {
@@ -92,6 +107,7 @@ export async function loadConfig(
             userConfig.swagger === false
               ? false
               : { ...DEFAULT_CONFIG.swagger, ...userConfig.swagger },
+          providers: userConfig.providers,
         };
 
         return cachedConfig;
