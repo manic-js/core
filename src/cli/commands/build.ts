@@ -24,12 +24,12 @@ function formatTime(ms: number): string {
 
 function getDirSize(dir: string): number {
   let size = 0;
-  try {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name);
-      size += entry.isDirectory() ? getDirSize(path) : statSync(path).size;
-    }
-  } catch {}
+  if (!existsSync(dir)) return 0;
+
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    size += entry.isDirectory() ? getDirSize(path) : statSync(path).size;
+  }
   return size;
 }
 
@@ -50,9 +50,7 @@ export async function build() {
 
   console.log(`\n${red(bold("■ MANIC"))} ${dim("build")}\n`);
 
-  try {
-    rmSync(dist, { recursive: true, force: true });
-  } catch {}
+  rmSync(dist, { recursive: true, force: true });
   mkdirSync(`${dist}/client`, { recursive: true });
 
   process.stdout.write(dim("● Bundling client..."));

@@ -16,7 +16,19 @@ type LazyLoader = () => Promise<{ default: ComponentType }>;
 declare global {
   interface Window {
     __MANIC_ROUTES__?: Record<string, LazyLoader>;
-    __MANIC_ROUTER_UPDATE__?: (path: string, component: ComponentType, params: Record<string, string>) => void;
+    __MANIC_ROUTER_UPDATE__?: (
+      path: string,
+      component: ComponentType,
+      params: Record<string, string>
+    ) => void;
+  }
+
+  interface Document {
+    startViewTransition?: (callback: () => void | Promise<void>) => {
+      finished: Promise<void>;
+      updateCallbackDone: Promise<void>;
+      ready: Promise<void>;
+    };
   }
 }
 
@@ -42,7 +54,10 @@ export { useQueryParams };
 // Cache loaded components
 const componentCache = new Map<string, ComponentType>();
 
-async function loadComponent(path: string, loader: LazyLoader): Promise<ComponentType> {
+async function loadComponent(
+  path: string,
+  loader: LazyLoader
+): Promise<ComponentType> {
   if (!componentCache.has(path)) {
     const module = await loader();
     componentCache.set(path, module.default);
@@ -70,14 +85,16 @@ export async function navigate(to: string): Promise<void> {
   if (typeof window === "undefined") return;
 
   const routes = window.__MANIC_ROUTES__ ?? {};
-  const routeDefs = Object.entries(routes).map(([path, loader]) => ({
-    path: path || "/",
-    component: null as any,
-    loader,
-  }));
+  const routeDefs: RouteDef[] = Object.entries(routes).map(
+    ([path, loader]) => ({
+      path: path || "/",
+      component: null,
+      loader,
+    })
+  );
 
   // Find matching route
-  const match = matchRoute(to, routeDefs as any);
+  const match = matchRoute(to, routeDefs);
   if (!match) {
     window.history.pushState({}, "", to);
     window.dispatchEvent(new PopStateEvent("popstate"));
@@ -104,12 +121,8 @@ export async function navigate(to: string): Promise<void> {
     }
   };
 
-  if (
-    viewTransitionsEnabled &&
-    "startViewTransition" in document &&
-    typeof (document as any).startViewTransition === "function"
-  ) {
-    (document as any).startViewTransition(() => {
+  if (viewTransitionsEnabled && document.startViewTransition) {
+    document.startViewTransition(() => {
       flushSync(performUpdate);
     });
   } else {
@@ -125,7 +138,9 @@ export function Router({
   const [currentPath, setCurrentPath] = useState(
     typeof window !== "undefined" ? window.location.pathname : "/"
   );
-  const [LoadedComponent, setLoadedComponent] = useState<ComponentType | null>(null);
+  const [LoadedComponent, setLoadedComponent] = useState<ComponentType | null>(
+    null
+  );
   const [routeParams, setRouteParams] = useState<Record<string, string>>({});
   const isInitialMount = useRef(true);
 
@@ -137,7 +152,7 @@ export function Router({
   const routeDefs: RouteDef[] = Object.entries(rawRoutes)
     .map(([path, loader]) => ({
       path: path || "/",
-      component: loader as unknown as ComponentType,
+      component: null,
       loader,
     }))
     .sort((a, b) => {
@@ -150,7 +165,11 @@ export function Router({
 
   // Register the update function for navigate() to use
   useEffect(() => {
-    window.__MANIC_ROUTER_UPDATE__ = (path: string, component: ComponentType, params: Record<string, string>) => {
+    window.__MANIC_ROUTER_UPDATE__ = (
+      path: string,
+      component: ComponentType,
+      params: Record<string, string>
+    ) => {
       setCurrentPath(path);
       setLoadedComponent(() => component);
       setRouteParams(params);
@@ -171,7 +190,7 @@ export function Router({
       const match = matchRoute(path, routeDefs);
       if (match) {
         const matchedRoute = routeDefs.find((r) => r.path === match.path);
-        const loader = (matchedRoute as any)?.loader as LazyLoader | undefined;
+        const loader = matchedRoute?.loader;
         if (loader) {
           loadComponent(match.path, loader).then((Component) => {
             setLoadedComponent(() => Component);
@@ -195,7 +214,7 @@ export function Router({
       const match = matchRoute(currentPath, routeDefs);
       if (match) {
         const matchedRoute = routeDefs.find((r) => r.path === match.path);
-        const loader = (matchedRoute as any)?.loader as LazyLoader | undefined;
+        const loader = matchedRoute?.loader;
         if (loader) {
           loadComponent(match.path, loader).then((Component) => {
             setLoadedComponent(() => Component);

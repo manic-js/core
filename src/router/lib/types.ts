@@ -2,7 +2,8 @@ import type { ComponentType } from "react";
 
 export interface RouteDef {
   path: string;
-  component: ComponentType;
+  component: ComponentType | null;
+  loader?: () => Promise<{ default: ComponentType }>;
 }
 
 export interface RouterContextValue {

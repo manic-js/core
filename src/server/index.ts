@@ -25,7 +25,7 @@ import { loadEnvFiles, getLoadedEnvKeys } from "../env";
 import { setViewTransitions } from "../router/lib/Router";
 
 export interface ManicServerOptions {
-  html: unknown;
+  html: string | (() => Response | Promise<Response>);
   port?: number;
 }
 
@@ -106,7 +106,7 @@ export async function createManicServer(
   const htmlHandler =
     typeof options.html === "string"
       ? () =>
-          new Response(options.html as string, {
+          new Response(options.html, {
             headers: {
               "content-type": "text/html",
               "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -145,9 +145,7 @@ export async function createManicServer(
       return apiApp.handle(req);
     }
 
-    return typeof htmlHandler === "function"
-      ? (htmlHandler as Function)()
-      : htmlHandler;
+    return typeof htmlHandler === "function" ? htmlHandler() : htmlHandler;
   };
 
   const server = Bun.serve({

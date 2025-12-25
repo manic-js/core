@@ -5,19 +5,11 @@ import { build } from "./build";
 
 export async function deploy() {
   const config = await loadConfig();
+  const provider = config.providers?.[0];
 
-  if (!config.providers?.length) {
+  if (!provider) {
     console.log(red("\n✗ No providers configured in manic.config.ts\n"));
     console.log(dim("Add a provider to deploy:"));
-    console.log(cyan('\n  import { vercel } from "@manicjs/providers";\n'));
-    console.log(dim("  providers: [vercel()]"));
-    process.exit(1);
-  }
-
-  const provider = config.providers[0];
-  if (!provider) {
-    console.log(yellow(`■ No provider configured in manic.config.ts`));
-    console.log(dim("Add a provider to generate config file:"));
     console.log(cyan('\n  import { vercel } from "@manicjs/providers";\n'));
     console.log(dim("  providers: [vercel()]"));
     process.exit(1);
