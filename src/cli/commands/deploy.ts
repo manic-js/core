@@ -5,9 +5,9 @@ import { build } from "./build";
 
 export async function deploy() {
   const config = await loadConfig();
-  const provider = config.providers?.[0];
+  const providers = config.providers ?? [];
 
-  if (!provider) {
+  if (providers.length === 0) {
     console.log(red("\n✗ No providers configured in manic.config.ts\n"));
     console.log(dim("Add a provider to deploy:"));
     console.log(cyan('\n  import { vercel } from "@manicjs/providers";\n'));
@@ -15,8 +15,9 @@ export async function deploy() {
     process.exit(1);
   }
 
+  const providerNames = providers.map((p) => p.name).join(", ");
   console.log(
-    `\n${red(bold("■ MANIC"))} ${dim("deploy")} → ${cyan(provider.name)}\n`
+    `\n${red(bold("■ MANIC"))} ${dim("deploy")} → ${cyan(providerNames)}\n`
   );
 
   const dist = config.build?.outdir ?? ".manic";
@@ -47,25 +48,35 @@ export async function deploy() {
     },
   };
 
-  const deployInfo = deployCommands[provider.name];
-  if (!deployInfo) {
-    console.log(yellow(`⚠ Unknown provider: ${provider.name}`));
-    console.log(dim("Run the deploy command manually for your platform."));
-    process.exit(1);
-  }
+  const shouldRun =
+    process.argv.includes("--run") || process.argv.includes("-r");
 
-  if (deployInfo.configFile && !existsSync(deployInfo.configFile)) {
-    console.log(dim(`● Generating ${deployInfo.configFile}...`));
+  // Process each provider
+  for (const provider of providers) {
+    console.log(bold(`\n📦 ${provider.name}`));
+    console.log(dim("─".repeat(40)));
 
-    if (provider.name === "vercel") {
-      await Bun.write(
-        "vercel.json",
-        JSON.stringify({ bunVersion: "1.x" }, null, 2)
-      );
-    } else if (provider.name === "netlify") {
-      const docsPath =
-        config.swagger !== false ? config.swagger?.path ?? "/docs" : null;
-      const netlifyToml = `[build]
+    const deployInfo = deployCommands[provider.name];
+    if (!deployInfo) {
+      console.log(yellow(`  ⚠ Unknown provider: ${provider.name}`));
+      console.log(dim("  Run the deploy command manually for your platform."));
+      continue;
+    }
+
+    if (deployInfo.configFile && !existsSync(deployInfo.configFile)) {
+      console.log(dim(`  ● Generating ${deployInfo.configFile}...`));
+
+      if (provider.name === "vercel") {
+        const vercelConfig = {
+          buildCommand: "bun run build",
+          installCommand: "bun install",
+          framework: null,
+        };
+        await Bun.write("vercel.json", JSON.stringify(vercelConfig, null, 2));
+      } else if (provider.name === "netlify") {
+        const docsPath =
+          config.swagger !== false ? config.swagger?.path ?? "/docs" : null;
+        const netlifyToml = `[build]
   command = "bun run build"
   publish = "dist"
   functions = "netlify/functions"
@@ -100,28 +111,27 @@ ${
   to = "/index.html"
   status = 200
 `;
-      await Bun.write("netlify.toml", netlifyToml);
+        await Bun.write("netlify.toml", netlifyToml);
+      }
+
+      console.log(dim(green(`  ● Generated ${deployInfo.configFile}`)));
     }
 
-    console.log(dim(green(`● Generated ${deployInfo.configFile}`)));
+    console.log(`  ${bold("Command:")} ${green(deployInfo.command)}`);
+
+    if (shouldRun) {
+      console.log(dim("\n  ● Running deploy...\n"));
+      const proc = Bun.spawn(deployInfo.command.split(" "), {
+        stdio: ["inherit", "inherit", "inherit"],
+        cwd: process.cwd(),
+      });
+      await proc.exited;
+    }
   }
 
-  console.log(`\n${bold("Deploy Command:")}`);
-  console.log(green(`  ${deployInfo.command}\n`));
-
-  const shouldRun =
-    process.argv.includes("--run") || process.argv.includes("-r");
-
-  if (shouldRun) {
-    console.log(dim("● Running deploy...\n"));
-    const proc = Bun.spawn(deployInfo.command.split(" "), {
-      stdio: ["inherit", "inherit", "inherit"],
-      cwd: process.cwd(),
-    });
-    await proc.exited;
-  } else {
+  if (!shouldRun) {
     console.log(
-      dim("Add --run or -r flag to execute the deploy command automatically.\n")
+      dim("\nAdd --run or -r flag to execute the deploy commands automatically.\n")
     );
   }
 }

@@ -248,13 +248,25 @@ export async function build() {
   if (config.providers?.length) {
     console.log("");
     for (const provider of config.providers) {
-      await provider.build({
-        dist,
-        config,
-        apiEntries,
-        clientDir: `${dist}/client`,
-        serverFile: `${dist}/server.js`,
-      });
+      if (!provider || typeof provider.build !== "function") {
+        console.error(
+          red(`\n✗ Invalid provider: ${JSON.stringify(provider)}`)
+        );
+        console.error(dim("  Make sure the provider is correctly imported from @manicjs/providers"));
+        continue;
+      }
+      try {
+        await provider.build({
+          dist,
+          config,
+          apiEntries,
+          clientDir: `${dist}/client`,
+          serverFile: `${dist}/server.js`,
+        });
+      } catch (err) {
+        console.error(red(`\n✗ Provider "${provider.name}" failed:`));
+        console.error(dim(`  ${err}`));
+      }
     }
   }
 

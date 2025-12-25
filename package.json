@@ -1,6 +1,6 @@
 {
   "name": "manicjs",
-  "version": "0.4.0",
+  "version": "0.5.2",
   "description": "Stupidly fast, Crazy light React framework powered by Bun and Elysia",
   "type": "module",
   "license": "GPL-3.0",
