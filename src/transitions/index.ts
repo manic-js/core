@@ -55,4 +55,4 @@ export const ViewTransitions = {
   li: createViewTransitionElement("li"),
 } as const;
 
-export { navigate, setViewTransitions } from "../router/lib/Link";
+export { navigate, setViewTransitions } from "../router/lib/Router";

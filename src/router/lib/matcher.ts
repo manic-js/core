@@ -1,6 +1,7 @@
 import type { RouteDef } from "./types";
 
 interface RouteMatch {
+  path: string;
   component: RouteDef["component"];
   params: Record<string, string>;
 }
@@ -32,7 +33,7 @@ export function matchRoute(
           return acc;
         }, {});
 
-      return { component: route.component, params };
+      return { path: route.path, component: route.component, params };
     }
   }
 

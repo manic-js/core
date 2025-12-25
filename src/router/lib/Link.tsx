@@ -5,34 +5,7 @@ import {
   type CSSProperties,
 } from "react";
 import { useRouter } from "./context";
-
-let viewTransitionsEnabled = true;
-
-export function setViewTransitions(enabled: boolean): void {
-  viewTransitionsEnabled = enabled;
-}
-
-export function navigate(to: string): void {
-  const updateState = () => {
-    window.history.pushState({}, "", to);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  };
-
-  if (
-    viewTransitionsEnabled &&
-    typeof document !== "undefined" &&
-    "startViewTransition" in document &&
-    typeof (
-      document as Document & { startViewTransition: (cb: () => void) => void }
-    ).startViewTransition === "function"
-  ) {
-    (
-      document as Document & { startViewTransition: (cb: () => void) => void }
-    ).startViewTransition(updateState);
-  } else {
-    updateState();
-  }
-}
+import { navigate, preloadRoute } from "./Router";
 
 interface LinkProps {
   to: string;
@@ -40,6 +13,7 @@ interface LinkProps {
   className?: string;
   style?: CSSProperties;
   viewTransitionName?: string;
+  prefetch?: boolean;
 }
 
 export function Link({
@@ -48,6 +22,7 @@ export function Link({
   className,
   style,
   viewTransitionName,
+  prefetch = true,
 }: LinkProps) {
   useRouter();
 
@@ -56,12 +31,9 @@ export function Link({
     navigate(to);
   };
 
-  const handleMouseEnter = () => {
-    if (typeof window !== "undefined" && window.__MANIC_ROUTES__) {
-      const loader = window.__MANIC_ROUTES__[to];
-      if (typeof loader === "function") {
-        loader();
-      }
+  const handlePreload = () => {
+    if (prefetch) {
+      preloadRoute(to);
     }
   };
 
@@ -76,7 +48,8 @@ export function Link({
       className,
       style: linkStyle,
       onClick: handleClick,
-      onMouseEnter: handleMouseEnter,
+      onMouseEnter: handlePreload,
+      onFocus: handlePreload,
     },
     children
   );

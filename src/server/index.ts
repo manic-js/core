@@ -22,7 +22,7 @@ import {
 } from "./lib/discovery";
 import { loadConfig } from "../config";
 import { loadEnvFiles, getLoadedEnvKeys } from "../env";
-import { setViewTransitions } from "../router/lib/Link";
+import { setViewTransitions } from "../router/lib/Router";
 
 export interface ManicServerOptions {
   html: unknown;
