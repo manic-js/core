@@ -3,11 +3,13 @@ import { blue, bold, cyan, dim, red } from "colorette";
 import { dev } from "./commands/dev";
 import { build } from "./commands/build";
 import { start } from "./commands/start";
+import { deploy } from "./commands/deploy";
 
 const commands = {
   dev,
   build,
   start,
+  deploy,
 } as const;
 
 type Command = keyof typeof commands;
@@ -24,6 +26,7 @@ ${bold("Commands:")}
   ${cyan("dev")}       Start development server with HMR
   ${cyan("build")}     Build for production
   ${cyan("start")}     Start production server
+  ${cyan("deploy")}    Deploy to configured provider
 
 ${bold("Options:")}
   -h, --help        Show this help message
@@ -37,6 +40,8 @@ ${bold("Examples:")}
   ${blue("manic")} dev --network
   ${blue("manic")} build
   ${blue("manic")} start
+  ${blue("manic")} deploy
+  ${blue("manic")} deploy --run
 `;
 
 async function main(): Promise<void> {
