@@ -101,14 +101,17 @@ export function useTheme(): ThemeContextValue {
   return context;
 }
 
-export function ThemeToggle({
-  className,
-  style,
-}: {
+export interface ThemeToggleProps {
   className?: string;
   style?: React.CSSProperties;
-}) {
-  const { toggle, isDark } = useTheme();
+  children?: ReactNode | ((theme: "light" | "dark") => ReactNode);
+}
+
+export function ThemeToggle({ className, style, children }: ThemeToggleProps) {
+  const { toggle, isDark, resolvedTheme } = useTheme();
+
+  const content =
+    typeof children === "function" ? children(resolvedTheme) : children;
 
   return createElement(
     "button",
@@ -118,7 +121,7 @@ export function ThemeToggle({
       style,
       "aria-label": isDark ? "Switch to light mode" : "Switch to dark mode",
     },
-    isDark ? "☀️" : "🌙"
+    content || (isDark ? "☀️" : "🌙")
   );
 }
 
