@@ -83,19 +83,19 @@ export async function build() {
   console.log(`\n${red(bold("■ MANIC"))} ${dim("build")}\n`);
 
   // Auto-lint with oxlint before build
-  /*
   process.stdout.write(dim("● Linting with oxlint..."));
   const oxlintBin = existsSync("node_modules/.bin/oxlint") ? "node_modules/.bin/oxlint" : "oxlint";
-  const lintResult = Bun.spawnSync([oxlintBin, "app", "--deny", "correctness", "--deny", "perf", "--quiet"]);
+  const lintResult = Bun.spawnSync([oxlintBin, ".", "--deny-warnings", "--quiet"], {
+    cwd: process.cwd()
+  });
   
   if (!lintResult.success) {
     process.stdout.write(`\r${dim(red("● Linting failed      "))}\n`);
-    console.error(lintResult.stdout.toString());
-    console.error(lintResult.stderr.toString());
+    const output = lintResult.stdout.toString() || lintResult.stderr.toString();
+    console.log(output);
     process.exit(1);
   }
   process.stdout.write(`\r${dim(green("● Linting passed      "))}\n`);
-  */
 
   await $`rm -rf ${dist}`;
   await $`mkdir -p ${dist}/client`;

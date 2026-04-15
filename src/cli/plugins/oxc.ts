@@ -1,5 +1,6 @@
 import { transformSync } from "oxc-transform";
 import type { BunPlugin } from "bun";
+import { getConfig } from "../../config/index.js";
 
 export function oxcPlugin(): BunPlugin {
   return {
@@ -14,6 +15,7 @@ export function oxcPlugin(): BunPlugin {
         try {
           let sourceText = await Bun.file(args.path).text();
           const ext = args.path.split(".").pop();
+          const config = getConfig();
 
           if (sourceText.includes("lucide-react")) {
             sourceText = sourceText.replace(
@@ -32,15 +34,15 @@ export function oxcPlugin(): BunPlugin {
 
           const result = transformSync(args.path, sourceText, {
             lang: ext as any,
-            target: isDev ? "esnext" : "es2022",
+            target: (isDev ? config.oxc?.target : "es2022") as any,
             sourcemap: true,
             jsx: {
               runtime: "automatic",
               development: isDev,
-              refresh: isDev,
+              refresh: isDev && config.oxc?.refresh !== false,
             },
             typescript: {
-              rewriteImportExtensions: true,
+              rewriteImportExtensions: config.oxc?.rewriteImportExtensions !== false,
               onlyRemoveTypeImports: true,
             },
           });
@@ -65,7 +67,7 @@ export function oxcPlugin(): BunPlugin {
           return {
             contents,
             loader: ext === "tsx" || ext === "jsx" ? "jsx" : "js",
-            map: result.map ? JSON.parse(result.map) : undefined,
+            map: (result.map && typeof result.map === "string") ? JSON.parse(result.map) : result.map,
           };
         } catch (error) {
           console.error(`[Manic OXC] Failed to transform ${args.path}`);

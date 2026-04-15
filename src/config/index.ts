@@ -80,6 +80,16 @@ export interface ManicConfig {
   /** Sitemap generation config, or false to disable */
   sitemap?: SitemapConfig | false;
 
+  /** Custom OXC transform settings */
+  oxc?: {
+    /** Target ES version @default "esnext" in dev, "es2022" in prod */
+    target?: string;
+    /** Replace import extensions like .ts to .js @default true */
+    rewriteImportExtensions?: boolean;
+    /** Use React Fast Refresh @default true in dev */
+    refresh?: boolean;
+  };
+
   /** Deployment providers (Vercel, Cloudflare, Netlify) */
   providers?: ManicProvider[];
 }
@@ -109,6 +119,11 @@ const DEFAULT_CONFIG: ManicConfig = {
       },
     },
   },
+  oxc: {
+    target: "esnext",
+    rewriteImportExtensions: true,
+    refresh: true,
+  }
 };
 
 /** Define a typed Manic configuration — use in manic.config.ts */
@@ -146,6 +161,7 @@ export async function loadConfig(
               ? false
               : { ...DEFAULT_CONFIG.swagger, ...userConfig.swagger },
           sitemap: userConfig.sitemap === false ? false : userConfig.sitemap,
+          oxc: { ...DEFAULT_CONFIG.oxc, ...userConfig.oxc },
           providers: userConfig.providers,
         };
 

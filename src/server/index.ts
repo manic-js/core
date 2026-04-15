@@ -1,142 +1,47 @@
-import {
-  bold,
-  cyan,
-  green,
-  dim,
-  yellow,
-  red,
-  bgYellow,
-  bgCyan,
-  gray,
-} from "colorette";
-import {
-  discoverRoutes,
-  discoverFavicon,
-  generateSitemap,
-  watchRoutes,
-  logRouteChange,
-  writeRoutesManifest,
-} from "./lib/discovery";
-import { loadConfig } from "../config";
-import { loadEnvFiles, getLoadedEnvKeys } from "../env";
-import { setViewTransitions } from "../router/lib/Router";
+import { red, green, bold, cyan, yellow, gray, dim } from "colorette";
+import { discoverRoutes, watchRoutes, generateSitemap } from "./lib/discovery";
+import { getConfig, loadConfig, type ManicConfig } from "../config/index";
+import { join } from "path";
 
-export interface ManicServerOptions {
-  html: string | (() => Response | Promise<Response>);
-  port?: number;
-}
+export async function createManicServer(options: {
+  html: string | (() => string);
+  config?: ManicConfig;
+  routes?: any[];
+  envKeys?: string[];
+  startTime?: number;
+}) {
+  // Ensure we have the base functions available
+  const _loadConfig = loadConfig;
+  const _discoverRoutes = discoverRoutes;
 
-export async function createManicServer(
-  options: ManicServerOptions
-): Promise<unknown> {
-  const startTime = performance.now();
-  const nodeEnv = process.env["NODE_ENV"];
-  const prod = nodeEnv === "production";
+  const config = options.config || await _loadConfig();
+  const routes = options.routes || await _discoverRoutes();
+  const envKeys = options.envKeys || [];
+  const startTime = options.startTime || performance.now();
+  const { html: htmlHandler } = options;
+  const prod = process.env.NODE_ENV === "production";
+  const port = config.server?.port ?? 6070;
+  const hostname = "0.0.0.0";
+  const favicon = (config.app as any)?.favicon;
 
-  await loadEnvFiles();
-  await writeRoutesManifest();
-
-  const config = await loadConfig();
-  const routes = await discoverRoutes();
-  const favicon = await discoverFavicon();
-  const envPort = process.env.PORT ? parseInt(process.env.PORT, 10) : undefined;
-  const port = options.port ?? envPort ?? config.server?.port ?? 6070;
-  const hostname =
-    process.env.HOST ||
-    (process.env.NETWORK === "true" ? "0.0.0.0" : "localhost");
-  const envKeys = getLoadedEnvKeys();
-
-  if (config.router?.viewTransitions !== undefined) {
-    setViewTransitions(config.router.viewTransitions);
-  }
-
-  const { apiLoaderPlugin } = await import("../plugins");
-  const { app: apiApp } = await apiLoaderPlugin();
-
-  const htmlHandler =
-    typeof options.html === "string"
-      ? () => {
-        let content = options.html as string;
-        if (!prod) {
-          const preamble = `
-              <script type="importmap">
-                {
-                  "imports": {
-                    "react": "https://esm.sh/react@19?dev",
-                    "react-dom": "https://esm.sh/react-dom@19?dev",
-                    "react-dom/client": "https://esm.sh/react-dom@19/client?dev",
-                    "manicjs/router": "/packages/manic/src/router/index.ts",
-                    "manicjs/config": "/packages/manic/src/config/index.ts"
-                  }
-                }
-              </script>
-              <script type="module">
-                import RefreshRuntime from "https://esm.sh/react-refresh/runtime";
-                RefreshRuntime.injectIntoGlobalHook(window);
-                window.$RefreshReg$ = (type, id) => {
-                  RefreshRuntime.register(type, id);
-                };
-                window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
-                window.__react_refresh_library__ = {
-                  performRefresh: () => RefreshRuntime.performReactRefresh()
-                };
-              </script>
-            `;
-          content = content.replace("</head>", `${preamble}\n</head>`);
-        }
-        return new Response(content, {
-          headers: {
-            "content-type": "text/html",
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-          },
-        });
-      }
-      : options.html;
-
-  const bunRoutes: Record<string, any> = {
-    "/": htmlHandler,
+  const logRouteChange = (routes: any[]) => {
+    console.log(`\n\t${cyan("•")} ${dim("Routes updated")}`);
   };
 
-  for (const route of routes) {
-    if (route.path !== "/") bunRoutes[route.path] = htmlHandler;
-  }
-
-  let resolver: any = null;
-  let transformSync: any = null;
-  const transpileCache = new Map<string, { code: string; mtime: number }>();
-
-  if (!prod) {
-    const oxc = await import("oxc-transform");
-    const res = await import("oxc-resolver");
-    transformSync = oxc.transformSync;
-    resolver = new res.ResolverFactory({ 
-      extensions: [".tsx", ".ts", ".jsx", ".js", ".json"],
-      modules: ["app", "node_modules"] // Help it find files in app/
-    });
-  }
+  const apiApp: any = (config as any).apiApp || { handle: (req: Request) => new Response("Not Found", { status: 404 }), use: () => {} };
 
   const handleDynamicRequest = async (req: Request) => {
     const url = new URL(req.url);
-    const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
+    const pathname = url.pathname;
 
-    if (pathname.startsWith("/api/")) return apiApp.handle(req);
-
-    if (pathname === "/_manic/open") {
-      const fileParam = url.searchParams.get("file");
-      if (fileParam) {
-        // Resolve URL or relative path to absolute filesystem path
-        const filePath = fileParam.startsWith("http") 
-          ? new URL(fileParam).pathname 
-          : fileParam;
-        
-        const resolved = resolver ? resolver.resolveSync(process.cwd(), filePath) : { path: filePath };
-        const finalPath = resolved.path || filePath;
-
+    if (pathname.startsWith("/_manic/open")) {
+      const file = url.searchParams.get("file");
+      if (file) {
         const line = url.searchParams.get("line") || "1";
-        const col = url.searchParams.get("col") || "1";
+        const col = url.searchParams.get("column") || "1";
+        const finalPath = file.replace(/^file:\/\/\//, "/").replace(/\\/g, "/");
         const editor = process.env.EDITOR || "code";
-        
-        const args = (editor === "code" || editor.endsWith("code")) 
+        const args = editor.includes("code") 
           ? ["-g", `${finalPath}:${line}:${col}`] 
           : [finalPath];
           
@@ -144,6 +49,25 @@ export async function createManicServer(
         return new Response("OK");
       }
       return new Response("Missing file", { status: 400 });
+    }
+
+    const serveHtml = () => typeof htmlHandler === "function" 
+      ? new Response(htmlHandler(), { headers: { "Content-Type": "text/html" } }) 
+      : new Response(htmlHandler, { headers: { "Content-Type": "text/html" } });
+
+    if (prod) {
+      // In production, try to serve from the build output first
+      const dist = config.build?.outdir ?? ".manic";
+      const assetFile = Bun.file(join(process.cwd(), dist, "client", pathname === "/" ? "index.html" : pathname));
+      if (await assetFile.exists()) {
+        return new Response(assetFile, {
+          headers: {
+            "Content-Type": assetFile.type,
+            "Cache-Control": "public, max-age=31536000, immutable"
+          }
+        });
+      }
+      return serveHtml();
     }
 
     if (!prod && resolver) {
@@ -161,16 +85,26 @@ export async function createManicServer(
         if (cached && cached.mtime === mtime) return new Response(cached.code, { headers: { "Content-Type": "application/javascript" } });
 
         const text = await file.text();
+        const _config = getConfig();
+        const oxcConfig = _config.oxc;
         const result = transformSync(resolved.path, text, {
           lang: resolved.path.endsWith(".tsx") ? "tsx" : "ts",
-          target: "esnext",
+          target: (oxcConfig?.target || "esnext") as any,
           sourcemap: true,
-          jsx: { runtime: "automatic", development: true, refresh: true },
-          typescript: { onlyRemoveTypeImports: true }
+          jsx: { 
+            runtime: "automatic", 
+            development: true, 
+            refresh: oxcConfig?.refresh !== false 
+          },
+          typescript: { 
+            rewriteImportExtensions: oxcConfig?.rewriteImportExtensions !== false,
+            onlyRemoveTypeImports: true 
+          }
         });
 
         const hmrGlue = `\nif (import.meta.hot) { import.meta.hot.accept(() => { window.__react_refresh_library__?.performRefresh(); }); }\n`;
-        const mapBase64 = Buffer.from(result.map!).toString("base64");
+        const mapStr = typeof result.map === "string" ? result.map : JSON.stringify(result.map);
+        const mapBase64 = Buffer.from(mapStr).toString("base64");
         const codeResponse = `${result.code}${hmrGlue}//# sourceMappingURL=data:application/json;base64,${mapBase64}`;
         transpileCache.set(resolved.path, { code: codeResponse, mtime });
         return new Response(codeResponse, { headers: { "Content-Type": "application/javascript" } });
@@ -182,8 +116,34 @@ export async function createManicServer(
        if (await assetFile.exists()) return new Response(assetFile);
     }
 
-    return typeof htmlHandler === "function" ? htmlHandler() : htmlHandler;
+    return serveHtml();
   };
+
+  const htmlResponse = typeof htmlHandler === "function" 
+    ? () => new Response(htmlHandler() as string, { headers: { "Content-Type": "text/html" } }) 
+    : new Response(htmlHandler as string, { headers: { "Content-Type": "text/html" } });
+
+  const bunRoutes: Record<string, any> = {
+    "/": htmlResponse,
+  };
+
+  for (const route of routes) {
+    if (route.path !== "/") bunRoutes[route.path] = htmlResponse;
+  }
+
+  let resolver: any = null;
+  let transformSync: any = null;
+  const transpileCache = new Map<string, { code: string; mtime: number }>();
+
+  if (!prod) {
+    const oxc = await import("oxc-transform");
+    const res = await import("oxc-resolver");
+    transformSync = oxc.transformSync;
+    resolver = new res.ResolverFactory({ 
+      extensions: [".tsx", ".ts", ".jsx", ".js", ".json"],
+      modules: ["app", "node_modules"] 
+    });
+  }
 
   if (config.mode === "frontend") {
     bunRoutes["/*"] = handleDynamicRequest;
@@ -196,7 +156,10 @@ export async function createManicServer(
     const server = Bun.serve({
       port,
       hostname,
-      routes: bunRoutes,
+      routes: {
+        ...bunRoutes,
+        "/*": handleDynamicRequest
+      },
       development: !prod && config.server?.hmr !== false ? { hmr: true } : undefined,
     });
 
@@ -215,7 +178,11 @@ export async function createManicServer(
   }
 
   apiApp.use(staticPlugin({ assets: "assets", prefix: "/assets" }));
-  if (prod) apiApp.use(staticPlugin({ assets: `${config.build?.outdir ?? ".manic"}/client`, prefix: "/" }));
+  if (prod) apiApp.use(staticPlugin({ assets: `${config.build?.outdir ?? ".manic"}/client`, prefix: "/.manic" }));
+
+  const docsPath = config.swagger === false ? null : (config.swagger?.path ?? "/docs");
+  if (docsPath) bunRoutes[docsPath] = (req: Request) => apiApp.handle(req);
+  if (docsPath) bunRoutes[`${docsPath}/*`] = (req: Request) => apiApp.handle(req);
 
   bunRoutes["/api/*"] = (req: Request) => apiApp.handle(req);
   bunRoutes["/_manic/*"] = (req: Request) => apiApp.handle(req);
@@ -225,8 +192,10 @@ export async function createManicServer(
   const server = Bun.serve({
     port,
     hostname,
-    routes: bunRoutes,
-    fetch: handleDynamicRequest,
+    routes: {
+      ...bunRoutes,
+      "/*": handleDynamicRequest
+    },
     development: !prod && config.server?.hmr !== false ? { hmr: true } : undefined,
   });
 
