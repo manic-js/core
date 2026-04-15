@@ -8,14 +8,18 @@ import { useRouter } from "./context";
 import { navigate, preloadRoute } from "./Router";
 
 interface LinkProps {
+  /** Target path to navigate to */
   to: string;
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
+  /** CSS view-transition-name for animating this element across navigations */
   viewTransitionName?: string;
+  /** Preload the target route on hover @default true */
   prefetch?: boolean;
 }
 
+/** Client-side navigation link with route prefetching on hover */
 export function Link({
   to,
   children,

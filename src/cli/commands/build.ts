@@ -10,6 +10,7 @@ import {
 import { join } from "node:path";
 import bunPluginTailwind from "bun-plugin-tailwind";
 import { loadConfig } from "../../config";
+import { discoverRoutes, generateSitemap } from "../../server/lib/discovery";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -132,9 +133,16 @@ export async function build() {
 
   await Bun.write(`${dist}/client/index.html`, html);
 
+  if (config.sitemap && config.sitemap !== false) {
+    const routes = await discoverRoutes();
+    const sitemapXml = generateSitemap(routes, config.sitemap);
+    await Bun.write(`${dist}/client/sitemap.xml`, sitemapXml);
+    process.stdout.write(dim(green("● Generated sitemap.xml\n")));
+  }
+
   const apiDir = "app/api";
   const apiEntries: string[] = [];
-  if (existsSync(apiDir)) {
+  if (config.mode !== "frontend" && existsSync(apiDir)) {
     process.stdout.write(dim("● Bundling API routes..."));
     const glob = new Bun.Glob("**/index.ts");
     for await (const file of glob.scan({ cwd: apiDir })) {

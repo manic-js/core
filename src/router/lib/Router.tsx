@@ -7,6 +7,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { NotFound } from "../../components/NotFound";
+import { ServerError } from "../../components/ServerError";
 import { RouterContext } from "./context";
 import { matchRoute } from "./matcher";
 import type { RouteDef } from "./types";
@@ -16,6 +17,10 @@ type LazyLoader = () => Promise<{ default: ComponentType }>;
 declare global {
   interface Window {
     __MANIC_ROUTES__?: Record<string, LazyLoader>;
+    __MANIC_ERROR_PAGES__?: {
+      notFound?: LazyLoader;
+      error?: LazyLoader;
+    };
     __MANIC_ROUTER_UPDATE__?: (
       path: string,
       component: ComponentType,
@@ -32,6 +37,7 @@ declare global {
   }
 }
 
+/** Hook to access URL search parameters reactively — updates on popstate */
 function useQueryParams(): URLSearchParams {
   const [params, setParams] = useState(() =>
     typeof window !== "undefined"
@@ -54,6 +60,13 @@ export { useQueryParams };
 // Cache loaded components
 const componentCache = new Map<string, ComponentType>();
 
+// Clear component cache during HMR so new components are picked up
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    componentCache.clear();
+  });
+}
+
 async function loadComponent(
   path: string,
   loader: LazyLoader
@@ -65,7 +78,7 @@ async function loadComponent(
   return componentCache.get(path)!;
 }
 
-// Preload a route (called on hover)
+/** Preload a route's component module — called on link hover for instant navigation */
 export function preloadRoute(path: string): void {
   if (typeof window === "undefined" || !window.__MANIC_ROUTES__) return;
   const loader = window.__MANIC_ROUTES__[path];
@@ -76,22 +89,25 @@ export function preloadRoute(path: string): void {
 
 let viewTransitionsEnabled = true;
 
+/** Enable or disable View Transitions API for client-side navigation */
 export function setViewTransitions(enabled: boolean): void {
   viewTransitionsEnabled = enabled;
 }
 
-// Navigate with component preloading and proper view transitions
+function buildRouteDefs(routes: Record<string, LazyLoader>): RouteDef[] {
+  return Object.entries(routes).map(([path, loader]) => ({
+    path: path || "/",
+    component: null,
+    loader,
+  }));
+}
+
+/** Navigate to a path with component preloading and view transition support */
 export async function navigate(to: string): Promise<void> {
   if (typeof window === "undefined") return;
 
   const routes = window.__MANIC_ROUTES__ ?? {};
-  const routeDefs: RouteDef[] = Object.entries(routes).map(
-    ([path, loader]) => ({
-      path: path || "/",
-      component: null,
-      loader,
-    })
-  );
+  const routeDefs = buildRouteDefs(routes);
 
   // Find matching route
   const match = matchRoute(to, routeDefs);
@@ -130,6 +146,39 @@ export async function navigate(to: string): Promise<void> {
   }
 }
 
+// Cache for custom error page components
+const errorPageCache = new Map<string, ComponentType>();
+
+async function loadErrorPage(
+  key: string,
+  loader: LazyLoader
+): Promise<ComponentType> {
+  if (!errorPageCache.has(key)) {
+    const module = await loader();
+    errorPageCache.set(key, module.default);
+  }
+  return errorPageCache.get(key)!;
+}
+
+function useErrorPage(
+  key: string,
+  loader?: LazyLoader,
+  fallback?: ComponentType
+): ComponentType {
+  const [Component, setComponent] = useState<ComponentType>(
+    () => errorPageCache.get(key) ?? fallback ?? NotFound
+  );
+
+  useEffect(() => {
+    if (loader && !errorPageCache.has(key)) {
+      loadErrorPage(key, loader).then((C) => setComponent(() => C));
+    }
+  }, [key, loader]);
+
+  return Component;
+}
+
+/** Client-side router with file-based routing, view transitions, and error boundaries */
 export function Router({
   routes: manualRoutes,
 }: {
@@ -142,26 +191,21 @@ export function Router({
     null
   );
   const [routeParams, setRouteParams] = useState<Record<string, string>>({});
+  const [hasError, setHasError] = useState(false);
   const isInitialMount = useRef(true);
 
   const rawRoutes: Record<string, LazyLoader> =
     manualRoutes ??
     (typeof window !== "undefined" ? window.__MANIC_ROUTES__ ?? {} : {});
 
-  // Build route definitions
-  const routeDefs: RouteDef[] = Object.entries(rawRoutes)
-    .map(([path, loader]) => ({
-      path: path || "/",
-      component: null,
-      loader,
-    }))
-    .sort((a, b) => {
-      const aIsDynamic = a.path.includes(":") || a.path.includes("[");
-      const bIsDynamic = b.path.includes(":") || b.path.includes("[");
-      if (aIsDynamic && !bIsDynamic) return 1;
-      if (!aIsDynamic && bIsDynamic) return -1;
-      return b.path.length - a.path.length;
-    });
+  const errorPages =
+    typeof window !== "undefined" ? window.__MANIC_ERROR_PAGES__ : undefined;
+
+  const NotFoundPage = useErrorPage("notFound", errorPages?.notFound, NotFound);
+  const ErrorPage = useErrorPage("error", errorPages?.error, ServerError);
+
+  // Build route definitions — sorting is handled inside matchRoute
+  const routeDefs = buildRouteDefs(rawRoutes);
 
   // Register the update function for navigate() to use
   useEffect(() => {
@@ -170,6 +214,7 @@ export function Router({
       component: ComponentType,
       params: Record<string, string>
     ) => {
+      setHasError(false);
       setCurrentPath(path);
       setLoadedComponent(() => component);
       setRouteParams(params);
@@ -185,6 +230,7 @@ export function Router({
     const handlePopState = (): void => {
       const path = window.location.pathname;
       setCurrentPath(path);
+      setHasError(false);
 
       // Load component for back/forward navigation
       const match = matchRoute(path, routeDefs);
@@ -192,10 +238,14 @@ export function Router({
         const matchedRoute = routeDefs.find((r) => r.path === match.path);
         const loader = matchedRoute?.loader;
         if (loader) {
-          loadComponent(match.path, loader).then((Component) => {
-            setLoadedComponent(() => Component);
-            setRouteParams(match.params);
-          });
+          loadComponent(match.path, loader)
+            .then((Component) => {
+              setLoadedComponent(() => Component);
+              setRouteParams(match.params);
+            })
+            .catch(() => {
+              setHasError(true);
+            });
         }
       } else {
         setLoadedComponent(null);
@@ -216,14 +266,26 @@ export function Router({
         const matchedRoute = routeDefs.find((r) => r.path === match.path);
         const loader = matchedRoute?.loader;
         if (loader) {
-          loadComponent(match.path, loader).then((Component) => {
-            setLoadedComponent(() => Component);
-            setRouteParams(match.params);
-          });
+          loadComponent(match.path, loader)
+            .then((Component) => {
+              setLoadedComponent(() => Component);
+              setRouteParams(match.params);
+            })
+            .catch(() => {
+              setHasError(true);
+            });
         }
       }
     }
   }, []);
+
+  if (hasError) {
+    return createElement(
+      RouterContext.Provider,
+      { value: { path: currentPath, navigate, params: {} } },
+      createElement(ErrorPage, null)
+    );
+  }
 
   if (!LoadedComponent) {
     const match = matchRoute(currentPath, routeDefs);
@@ -231,7 +293,7 @@ export function Router({
       return createElement(
         RouterContext.Provider,
         { value: { path: currentPath, navigate, params: {} } },
-        createElement(NotFound, null)
+        createElement(NotFoundPage, null)
       );
     }
     // Show nothing while loading initial route

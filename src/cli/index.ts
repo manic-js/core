@@ -54,7 +54,7 @@ async function main(): Promise<void> {
   }
 
   if (args.includes("-v") || args.includes("--version")) {
-    console.log("v0.3.0");
+    console.log("v0.6.0");
     process.exit(0);
   }
 

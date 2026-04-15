@@ -1,9 +1,14 @@
 import { Elysia } from "elysia";
 import { join } from "node:path";
+import { existsSync } from "node:fs";
 
 export const apiLoaderPlugin = async (apiDir: string = "app/api") => {
   const app = new Elysia({ name: "manic.api" });
   const routes: string[] = [];
+
+  if (!existsSync(apiDir)) {
+    return { app, routes };
+  }
 
   const explorer = new Bun.Glob("**/*.{ts,tsx}");
 
