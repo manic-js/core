@@ -54,9 +54,9 @@ export async function createManicServer(
     const htmlHandler =
       typeof options.html === "string"
         ? () => {
-            let content = options.html as string;
-            if (!prod) {
-              const preamble = `
+          let content = options.html as string;
+          if (!prod) {
+            const preamble = `
                 <script type="importmap">
                   {
                     "imports": {
@@ -80,15 +80,15 @@ export async function createManicServer(
                   };
                 </script>
               `;
-              content = content.replace("</head>", `${preamble}\n</head>`);
-            }
-            return new Response(content, {
-              headers: {
-                "content-type": "text/html",
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-              },
-            });
+            content = content.replace("</head>", `${preamble}\n</head>`);
           }
+          return new Response(content, {
+            headers: {
+              "content-type": "text/html",
+              "Cache-Control": "no-cache, no-store, must-revalidate",
+            },
+          });
+        }
         : options.html;
 
     const bunRoutes: Record<string, unknown> = {
@@ -105,7 +105,7 @@ export async function createManicServer(
     if (!prod) {
       const { transformSync } = await import("oxc-transform");
       const { ResolverFactory } = await import("oxc-resolver");
-      
+
       const resolver = new ResolverFactory({
         extensions: [".tsx", ".ts", ".jsx", ".js", ".json"]
       });
@@ -116,14 +116,14 @@ export async function createManicServer(
       bunRoutes["/*"] = async (req: Request) => {
         const url = new URL(req.url);
         const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
-        
+
         const resolved = resolver.resolveSync(process.cwd(), pathname);
-        
+
         if (resolved.path && (resolved.path.endsWith(".tsx") || resolved.path.endsWith(".ts"))) {
           try {
             const file = Bun.file(resolved.path);
             const mtime = file.lastModified;
-            
+
             // CACHE HIT: Return immediately if file hasn't changed
             const cached = transpileCache.get(resolved.path);
             if (cached && cached.mtime === mtime) {
@@ -134,7 +134,7 @@ export async function createManicServer(
 
             const text = await file.text();
             const isTsx = resolved.path.endsWith(".tsx");
-            
+
             const result = transformSync(resolved.path, text, {
               lang: isTsx ? "tsx" : "ts",
               target: "esnext",
@@ -181,10 +181,10 @@ export async function createManicServer(
         const headers: Record<string, string> = prod
           ? {}
           : {
-              "Cache-Control": "no-cache, no-store, must-revalidate",
-              Pragma: "no-cache",
-              Expires: "0",
-            };
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+            Expires: "0",
+          };
         return new Response(Bun.file(faviconFile), { headers });
       };
     }
@@ -212,10 +212,10 @@ export async function createManicServer(
             headers: prod
               ? { "Cache-Control": "public, max-age=31536000, immutable" }
               : {
-                  "Cache-Control": "no-cache, no-store, must-revalidate",
-                  Pragma: "no-cache",
-                  Expires: "0",
-                },
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                Pragma: "no-cache",
+                Expires: "0",
+              },
           });
         }
       }
@@ -233,7 +233,7 @@ export async function createManicServer(
     });
 
     if (!prod) {
-      watchRoutes("app/routes", logRouteChange).catch(() => {});
+      watchRoutes("app/routes", logRouteChange).catch(() => { });
     }
 
     const duration = Math.round(performance.now() - startTime);
@@ -242,10 +242,9 @@ export async function createManicServer(
     const url = `http://${displayHost}:${serverPort}/`;
 
     console.log(
-      `\n\n\t\t${red(bold("■ MANIC"))}            ${
-        prod
-          ? yellow(`${bgYellow(" PROD ")} Server`)
-          : cyan(` ${bgCyan(" DEV ")} Server`)
+      `\n\n\t\t${red(bold("■ MANIC"))}            ${prod
+        ? yellow(`${bgYellow(" PROD ")} Server`)
+        : cyan(` ${bgCyan(" DEV ")} Server`)
       }\n\t\t--- --- --- --- --- ---  --- ---`
     );
 
@@ -298,10 +297,13 @@ export async function createManicServer(
         path: swaggerConfig.path ?? "/docs",
         exclude: [
           "/",
+          "",
           "/assets",
           "/favicon.ico",
           "/api/docs",
           swaggerConfig.path ?? "/docs",
+          "*",
+          "/*",
         ],
         documentation: {
           info: {
@@ -326,10 +328,10 @@ export async function createManicServer(
       headers: prod
         ? undefined
         : {
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
-            Expires: "0",
-          },
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
     })
   );
 
@@ -352,17 +354,17 @@ export async function createManicServer(
       const headers: Record<string, string> = prod
         ? {}
         : {
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            Pragma: "no-cache",
-            Expires: "0",
-          };
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        };
       return new Response(Bun.file(faviconFile), { headers });
     });
   }
 
   const htmlHandler =
     typeof options.html === "string"
-    ? () => {
+      ? () => {
         let content = options.html as string;
         if (!prod) {
           const preamble = `
@@ -428,7 +430,7 @@ export async function createManicServer(
       const url = new URL(req.url);
       const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
       const resolved = resolver.sync(process.cwd(), pathname);
-      
+
       if (resolved.path && (resolved.path.endsWith(".tsx") || resolved.path.endsWith(".ts"))) {
         const file = Bun.file(resolved.path);
         const mtime = file.lastModified;
@@ -486,7 +488,7 @@ export async function createManicServer(
   });
 
   if (!prod) {
-    watchRoutes("app/routes", logRouteChange).catch(() => {});
+    watchRoutes("app/routes", logRouteChange).catch(() => { });
   }
 
   const duration = Math.round(performance.now() - startTime);
@@ -498,10 +500,9 @@ export async function createManicServer(
     config.swagger !== false ? config.swagger?.path ?? "/docs" : null;
 
   console.log(
-    `\n\n\t\t${red(bold("■ MANIC"))}            ${
-      prod
-        ? yellow(`${bgYellow(" PROD ")} Server`)
-        : cyan(` ${bgCyan(" DEV ")} Server`)
+    `\n\n\t\t${red(bold("■ MANIC"))}            ${prod
+      ? yellow(`${bgYellow(" PROD ")} Server`)
+      : cyan(` ${bgCyan(" DEV ")} Server`)
     }\n\t\t--- --- --- --- --- ---  --- ---`
   );
 

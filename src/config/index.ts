@@ -1,4 +1,3 @@
-/** Swagger/OpenAPI documentation configuration */
 export interface SwaggerConfig {
   /** URL path to serve docs at @default "/docs" */
   path?: string;

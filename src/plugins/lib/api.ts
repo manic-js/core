@@ -5,6 +5,7 @@ import { isAbsolute, join } from "node:path";
 export const apiLoaderPlugin = async (apiDir: string = "app/api") => {
   let app = new Elysia({ name: "manic.api" });
   const routes: string[] = [];
+  const registeredPaths = new Set<string>();
   const apiRoot = isAbsolute(apiDir) ? apiDir : join(process.cwd(), apiDir);
 
   if (!existsSync(apiRoot)) {
@@ -29,20 +30,23 @@ export const apiLoaderPlugin = async (apiDir: string = "app/api") => {
            // Handle root api index
            app = app.all("/api", (ctx) => mod.default(ctx));
            routes.push("/api");
+           registeredPaths.add("/api");
            continue;
         }
 
-        const mountPath = `/api/${routePath}`;
+        const mountPath = `/api/${routePath}`.replace(/\/$/, "") || "/api";
+        
+        if (registeredPaths.has(mountPath)) continue;
+        registeredPaths.add(mountPath);
+        
         routes.push(matchPathToPattern(mountPath));
 
         if (typeof mod.default === "function" && !(mod.default as any).fetch) {
-           // If it's a plain function, register basic methods for Swagger
            app = app.get(mountPath, (ctx) => mod.default(ctx))
                     .post(mountPath, (ctx) => mod.default(ctx))
                     .put(mountPath, (ctx) => mod.default(ctx))
                     .delete(mountPath, (ctx) => mod.default(ctx));
-        } else {
-           // If it's an Elysia instance or plugin, use it directly.
+        } else if (mod.default) {
            app = app.group(mountPath, (g) => g.use(mod.default));
         }
       }
