@@ -53,13 +53,42 @@ export async function createManicServer(
   if (config.mode === "frontend") {
     const htmlHandler =
       typeof options.html === "string"
-        ? () =>
-            new Response(options.html, {
+        ? () => {
+            let content = options.html as string;
+            if (!prod) {
+              const preamble = `
+                <script type="importmap">
+                  {
+                    "imports": {
+                      "react": "https://esm.sh/react@19?dev",
+                      "react-dom": "https://esm.sh/react-dom@19?dev",
+                      "react-dom/client": "https://esm.sh/react-dom@19/client?dev",
+                      "manicjs/router": "/packages/manic/src/router/index.ts",
+                      "manicjs/config": "/packages/manic/src/config/index.ts"
+                    }
+                  }
+                </script>
+                <script type="module">
+                  import RefreshRuntime from "https://esm.sh/react-refresh/runtime";
+                  RefreshRuntime.injectIntoGlobalHook(window);
+                  window.$RefreshReg$ = (type, id) => {
+                    RefreshRuntime.register(type, id);
+                  };
+                  window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+                  window.__react_refresh_library__ = {
+                    performRefresh: () => RefreshRuntime.performReactRefresh()
+                  };
+                </script>
+              `;
+              content = content.replace("</head>", `${preamble}\n</head>`);
+            }
+            return new Response(content, {
               headers: {
                 "content-type": "text/html",
                 "Cache-Control": "no-cache, no-store, must-revalidate",
               },
-            })
+            });
+          }
         : options.html;
 
     const bunRoutes: Record<string, unknown> = {
@@ -70,6 +99,80 @@ export async function createManicServer(
       if (route.path !== "/") {
         bunRoutes[route.path] = htmlHandler;
       }
+    }
+
+    // Extreme On-Demand OXC Transpiler with Caching
+    if (!prod) {
+      const { transformSync } = await import("oxc-transform");
+      const { ResolverFactory } = await import("oxc-resolver");
+      
+      const resolver = new ResolverFactory({
+        extensions: [".tsx", ".ts", ".jsx", ".js", ".json"]
+      });
+
+      // Simple in-memory cache
+      const transpileCache = new Map<string, { code: string; mtime: number }>();
+
+      bunRoutes["/*"] = async (req: Request) => {
+        const url = new URL(req.url);
+        const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
+        
+        const resolved = resolver.resolveSync(process.cwd(), pathname);
+        
+        if (resolved.path && (resolved.path.endsWith(".tsx") || resolved.path.endsWith(".ts"))) {
+          try {
+            const file = Bun.file(resolved.path);
+            const mtime = file.lastModified;
+            
+            // CACHE HIT: Return immediately if file hasn't changed
+            const cached = transpileCache.get(resolved.path);
+            if (cached && cached.mtime === mtime) {
+              return new Response(cached.code, {
+                headers: { "Content-Type": "application/javascript" }
+              });
+            }
+
+            const text = await file.text();
+            const isTsx = resolved.path.endsWith(".tsx");
+            
+            const result = transformSync(resolved.path, text, {
+              lang: isTsx ? "tsx" : "ts",
+              target: "esnext",
+              sourcemap: true,
+              jsx: { runtime: "automatic", development: true, refresh: true },
+              typescript: { onlyRemoveTypeImports: true }
+            });
+
+            const hmrGlue = `
+              if (import.meta.hot) {
+                import.meta.hot.accept(() => {
+                  if (window.__react_refresh_library__) {
+                    window.__react_refresh_library__.performRefresh();
+                  }
+                });
+              }
+            `;
+
+            const mapBase64 = Buffer.from(result.map!).toString("base64");
+            const codeResponse = `${result.code}\n${hmrGlue}\n//# sourceMappingURL=data:application/json;base64,${mapBase64}`;
+
+            // Update Cache
+            transpileCache.set(resolved.path, { code: codeResponse, mtime });
+
+            return new Response(codeResponse, {
+              headers: { "Content-Type": "application/javascript" }
+            });
+          } catch (err) {
+            console.error(red("[Manic Cache Error]:"), err);
+          }
+        }
+
+        if (!pathname.includes(".")) {
+          return typeof htmlHandler === "function" ? htmlHandler() : htmlHandler;
+        }
+
+        return new Response("Not Found", { status: 404 });
+      };
     }
 
     if (favicon) {
@@ -96,6 +199,10 @@ export async function createManicServer(
 
     bunRoutes["/*"] = async (req: Request) => {
       const url = new URL(req.url);
+
+      if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
+        return apiApp.handle(req);
+      }
 
       if (url.pathname.startsWith("/assets/")) {
         const assetPath = `assets${url.pathname.replace("/assets", "")}`;
@@ -255,13 +362,31 @@ export async function createManicServer(
 
   const htmlHandler =
     typeof options.html === "string"
-      ? () =>
-          new Response(options.html, {
-            headers: {
-              "content-type": "text/html",
-              "Cache-Control": "no-cache, no-store, must-revalidate",
-            },
-          })
+    ? () => {
+        let content = options.html as string;
+        if (!prod) {
+          const preamble = `
+            <script type="module">
+              import RefreshRuntime from "https://esm.sh/react-refresh/runtime";
+              RefreshRuntime.injectIntoGlobalHook(window);
+              window.$RefreshReg$ = (type, id) => {
+                RefreshRuntime.register(type, id);
+              };
+              window.$RefreshSig$ = RefreshRuntime.createSignatureFunctionForTransform;
+              window.__react_refresh_library__ = {
+                performRefresh: () => RefreshRuntime.performReactRefresh()
+              };
+            </script>
+          `;
+          content = content.replace("</head>", `${preamble}\n</head>`);
+        }
+        return new Response(content, {
+          headers: {
+            "content-type": "text/html",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+          },
+        });
+      }
       : options.html;
 
   const bunRoutes: Record<string, unknown> = {
@@ -293,24 +418,69 @@ export async function createManicServer(
       });
   }
 
-  bunRoutes["/*"] = (req: Request) => {
-    const url = new URL(req.url);
-    const hasExtension = url.pathname
-      .slice(url.pathname.lastIndexOf("/"))
-      .includes(".");
+  if (!prod) {
+    const { transformSync } = await import("oxc-transform");
+    const { ResolverFactory } = await import("oxc-resolver");
+    const resolver = new ResolverFactory({ extensions: [".tsx", ".ts", ".jsx", ".js", ".json"] });
+    const transpileCache = new Map<string, { code: string; mtime: number }>();
 
-    if (prod && hasExtension) {
-      return apiApp.handle(req);
-    }
+    bunRoutes["/*"] = async (req: Request) => {
+      const url = new URL(req.url);
+      const pathname = url.pathname === "/" ? "/index.html" : url.pathname;
+      const resolved = resolver.sync(process.cwd(), pathname);
+      
+      if (resolved.path && (resolved.path.endsWith(".tsx") || resolved.path.endsWith(".ts"))) {
+        const file = Bun.file(resolved.path);
+        const mtime = file.lastModified;
+        const cached = transpileCache.get(resolved.path);
+        if (cached && cached.mtime === mtime) return new Response(cached.code, { headers: { "Content-Type": "application/javascript" } });
 
-    return typeof htmlHandler === "function" ? htmlHandler() : htmlHandler;
-  };
+        const text = await file.text();
+        const result = transformSync(resolved.path, text, {
+          lang: resolved.path.endsWith(".tsx") ? "tsx" : "ts",
+          target: "esnext",
+          sourcemap: true,
+          jsx: { runtime: "automatic", development: true, refresh: true },
+          typescript: { onlyRemoveTypeImports: true }
+        });
+
+        const hmrGlue = `if (import.meta.hot) { import.meta.hot.accept(() => { window.__react_refresh_library__?.performRefresh(); }); }`;
+        const mapBase64 = Buffer.from(result.map!).toString("base64");
+        const codeResponse = `${result.code}\n${hmrGlue}\n//# sourceMappingURL=data:application/json;base64,${mapBase64}`;
+        transpileCache.set(resolved.path, { code: codeResponse, mtime });
+        return new Response(codeResponse, { headers: { "Content-Type": "application/javascript" } });
+      }
+
+      // If it's not a source file and not an asset, it's a frontend route
+      if (!pathname.includes(".")) {
+        return typeof htmlHandler === "function" ? (htmlHandler() as Response) : (htmlHandler as Response);
+      }
+
+      return new Response("Not Found", { status: 404 });
+    };
+  } else {
+    bunRoutes["/*"] = (req: Request) => {
+      const url = new URL(req.url);
+      if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
+        return apiApp.handle(req) as unknown as Response;
+      }
+      return typeof htmlHandler === "function" ? (htmlHandler() as Response) : (htmlHandler as Response);
+    };
+  }
 
   const server = Bun.serve({
     port,
     hostname,
     routes: bunRoutes,
-    fetch: () => new Response("Not Found", { status: 404 }),
+    fetch: (req: Request) => {
+      const url = new URL(req.url);
+      if (url.pathname === "/api" || url.pathname.startsWith("/api/")) {
+        return apiApp.handle(req);
+      }
+      const isAsset = url.pathname.includes(".");
+      if (isAsset) return new Response("Not Found", { status: 404 });
+      return typeof htmlHandler === "function" ? (htmlHandler() as Response) : (htmlHandler as Response);
+    },
     development:
       !prod && config.server?.hmr !== false ? { hmr: true } : undefined,
   });

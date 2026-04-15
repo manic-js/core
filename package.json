@@ -75,6 +75,7 @@
     "bun-plugin-tailwind": "^0.1.2",
     "colorette": "^2.0.20",
     "elysia": "^1.3.20",
+    "oxc-resolver": "^11.19.1",
     "oxlint": "^1.60.0"
   },
   "devDependencies": {
@@ -82,9 +83,11 @@
     "@types/bun": "latest",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "oxc-minify": "^0.125.0",
     "oxc-transform": "^0.125.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-refresh": "^0.18.0",
     "typescript": "^5.0.0"
   },
   "engines": {

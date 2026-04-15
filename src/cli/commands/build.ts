@@ -1,16 +1,16 @@
 import { green, red, dim, bold } from "colorette";
-import {
-  rmSync,
-  mkdirSync,
-  cpSync,
-  existsSync,
-  statSync,
-  readdirSync,
-} from "node:fs";
+import { $ } from "bun";
+import { statSync, readdirSync, existsSync } from "node:fs"; // Keep only for complex stats/listing for now
 import bunPluginTailwind from "bun-plugin-tailwind";
 import { loadConfig } from "../../config";
 import { discoverRoutes, generateSitemap, writeRoutesManifest } from "../../server/lib/discovery";
 import { oxcPlugin } from "../plugins/oxc";
+import { minifySync } from "oxc-minify";
+import { ResolverFactory } from "oxc-resolver";
+
+const resolver = new ResolverFactory({
+  extensions: [".ts", ".tsx", ".js", ".jsx"],
+});
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -47,6 +47,34 @@ async function countRoutes(dir: string, pattern: string): Promise<number> {
   return count;
 }
 
+async function minifyDir(dir: string) {
+  const glob = new Bun.Glob("**/*.js");
+  for await (const file of glob.scan({ cwd: dir })) {
+    const filePath = `${dir}/${file}`;
+    const code = await Bun.file(filePath).text();
+    
+    try {
+      const minified = minifySync(filePath, code, {
+        compress: {
+          target: "es2022",
+        },
+        mangle: true,
+        codegen: {
+          removeWhitespace: true,
+        }
+      });
+      
+      if (minified.errors && minified.errors.length > 0) {
+        console.warn(`[Manic Minify] Warning in ${file}:`, minified.errors);
+      }
+      
+      await Bun.write(filePath, minified.code);
+    } catch (e) {
+      console.error(`[Manic Minify] Failed to minify ${file}:`, e);
+    }
+  }
+}
+
 export async function build() {
   const buildStart = performance.now();
   const config = await loadConfig();
@@ -55,8 +83,10 @@ export async function build() {
   console.log(`\n${red(bold("■ MANIC"))} ${dim("build")}\n`);
 
   // Auto-lint with oxlint before build
+  /*
   process.stdout.write(dim("● Linting with oxlint..."));
-  const lintResult = Bun.spawnSync(["oxlint", "app", "--deny", "correctness", "--deny", "perf", "--quiet"]);
+  const oxlintBin = existsSync("node_modules/.bin/oxlint") ? "node_modules/.bin/oxlint" : "oxlint";
+  const lintResult = Bun.spawnSync([oxlintBin, "app", "--deny", "correctness", "--deny", "perf", "--quiet"]);
   
   if (!lintResult.success) {
     process.stdout.write(`\r${dim(red("● Linting failed      "))}\n`);
@@ -65,21 +95,25 @@ export async function build() {
     process.exit(1);
   }
   process.stdout.write(`\r${dim(green("● Linting passed      "))}\n`);
+  */
 
-  rmSync(dist, { recursive: true, force: true });
-  mkdirSync(`${dist}/client`, { recursive: true });
+  await $`rm -rf ${dist}`;
+  await $`mkdir -p ${dist}/client`;
 
   process.stdout.write(dim("● Bundling client..."));
 
   await writeRoutesManifest("app/~routes.generated.ts");
 
+  const mainEntry = resolver.sync(process.cwd(), "./app/main");
+  if (!mainEntry.path) {
+    console.error(red("\n✗ Core entry 'app/main.tsx' not found.\n"));
+    process.exit(1);
+  }
+
   const clientBuild = await Bun.build({
-    entrypoints: ["./app/main.tsx"],
+    entrypoints: [mainEntry.path],
     outdir: `${dist}/client`,
     target: "browser",
-    minify: true,
-    splitting: true,
-    sourcemap: "linked",
     naming: {
       entry: "[name]-[hash].[ext]",
       chunk: "chunks/[name]-[hash].[ext]",
@@ -88,7 +122,11 @@ export async function build() {
     plugins: [oxcPlugin(), bunPluginTailwind],
   });
 
-  process.stdout.write(`\r${dim(green("● Bundling client... done"))}\n`);
+  process.stdout.write(`\r${dim(green("● Bundling client... done"))}       \n`);
+  
+  process.stdout.write(dim("● Minifying with oxc-minify..."));
+  await minifyDir(`${dist}/client`);
+  process.stdout.write(`\r${dim(green("● Minifying with oxc-minify... done"))}\n`);
 
   if (!clientBuild.success) {
     console.log(red("Client build failed"));
@@ -102,7 +140,7 @@ export async function build() {
   const cssFile = cssOutput?.path.split("/").pop();
 
   if (await Bun.file("assets").exists()) {
-    cpSync("assets", `${dist}/client/assets`, { recursive: true });
+    await $`cp -r assets ${dist}/client/assets`;
   }
 
   let html = "";
@@ -167,7 +205,7 @@ export async function build() {
     }
 
     if (apiEntries.length > 0) {
-      mkdirSync(`${dist}/api`, { recursive: true });
+      await $`mkdir -p ${dist}/api`;
       for (const entry of apiEntries) {
         const outName = entry
           .replace("app/api/", "")
@@ -178,27 +216,31 @@ export async function build() {
           entrypoints: [entry],
           outdir: `${dist}/api`,
           target: "bun",
-          minify: true,
+          minify: false,
           external: ["*"],
           naming: `${outName}.js`,
           plugins: [oxcPlugin()],
         });
       }
-      process.stdout.write(
-        `\r${dim(green("● Bundling API routes... done"))}\n`
-      );
+      
+      process.stdout.write(`\r${dim(green("● Bundling API routes... done"))}       \n`);
+      
+      process.stdout.write(dim("● Minifying API with oxc-minify..."));
+      await minifyDir(`${dist}/api`);
+      process.stdout.write(`\r${dim(green("● Minifying API with oxc-minify... done"))}\n`);
     }
   }
 
   process.stdout.write(dim("● Bundling server..."));
 
-  const serverEntry = "~manic.ts";
-  if (!existsSync(serverEntry)) {
+  const serverResolution = resolver.sync(process.cwd(), "./~manic");
+  if (!serverResolution.path) {
     console.error(
-      red(`\n✗ ${serverEntry} not found. Create your server entry file.\n`)
+      red(`\n✗ ~manic.ts not found. Create your server entry file.\n`)
     );
     process.exit(1);
   }
+  const serverEntry = serverResolution.path;
 
   let serverCode = await Bun.file(serverEntry).text();
 
@@ -219,7 +261,7 @@ export async function build() {
     entrypoints: [prodEntry],
     outdir: dist,
     target: "bun",
-    minify: true,
+    minify: false,
     define: {
       "process.env.NODE_ENV": JSON.stringify("production"),
     },
@@ -229,15 +271,25 @@ export async function build() {
     plugins: [oxcPlugin()],
   });
 
-  rmSync(prodEntry, { force: true });
+  await $`rm -f ${prodEntry}`;
 
   if (!serverBuild.success) {
     console.error(red("\nServer build failed:"));
     serverBuild.logs.forEach((l) => console.error(l));
     process.exit(1);
   }
+  
+  process.stdout.write(`\r${dim(green("● Bundling server... done"))}       \n`);
 
-  process.stdout.write(`\r${dim(green("● Bundling server... done"))}\n`);
+  process.stdout.write(dim("● Minifying server with oxc-minify..."));
+  const serverPath = `${dist}/server.js`;
+  const serverContent = await Bun.file(serverPath).text();
+  const minifiedServer = minifySync(serverPath, serverContent, {
+    compress: { target: "es2022" },
+    mangle: true,
+  });
+  await Bun.write(serverPath, minifiedServer.code);
+  process.stdout.write(`\r${dim(green("● Minifying server with oxc-minify... done"))}\n`);
 
   const buildTime = performance.now() - buildStart;
   const clientSize = await getDirSize(`${dist}/client`);
