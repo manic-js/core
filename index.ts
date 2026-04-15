@@ -15,3 +15,4 @@ export {
 } from "./src/config";
 export { ThemeProvider, useTheme, ThemeToggle } from "./src/theme";
 export { ViewTransitions } from "./src/transitions";
+export { createEdenClient } from "./src/config/client";

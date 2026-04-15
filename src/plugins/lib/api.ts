@@ -1,19 +1,20 @@
 import { Elysia } from "elysia";
-import { join } from "node:path";
-import { existsSync } from "node:fs";
 
 export const apiLoaderPlugin = async (apiDir: string = "app/api") => {
-  const app = new Elysia({ name: "manic.api" });
+  let app = new Elysia({ name: "manic.api" });
   const routes: string[] = [];
 
-  if (!existsSync(apiDir)) {
+  const dirFile = Bun.file(apiDir);
+  const exists = await dirFile.exists();
+  
+  if (!exists) {
     return { app, routes };
   }
 
   const explorer = new Bun.Glob("**/*.{ts,tsx}");
 
   for await (const file of explorer.scan({ cwd: apiDir })) {
-    const fullPath = join(process.cwd(), apiDir, file);
+    const fullPath = `${process.cwd()}/${apiDir}/${file}`;
 
     try {
       const mod = await import(fullPath);
@@ -32,8 +33,8 @@ export const apiLoaderPlugin = async (apiDir: string = "app/api") => {
         }
 
         const mountPath = `/api/${routePath}`;
-        routes.push(mountPath);
-        app.group(mountPath, (g) => g.use(mod.default));
+        routes.push(matchPathToPattern(mountPath));
+        app = app.group(`/api/${routePath}`, (g) => g.use(mod.default));
       }
     } catch (err) {
       console.error(`[Manic API] Failed to load ${file}:`, err);
@@ -42,3 +43,7 @@ export const apiLoaderPlugin = async (apiDir: string = "app/api") => {
 
   return { app, routes };
 };
+
+function matchPathToPattern(path: string) {
+    return path.replace(/\[([^\]]+)\]/g, ":$1");
+}

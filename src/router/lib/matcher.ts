@@ -7,12 +7,11 @@ interface RouteMatch {
 }
 
 interface CompiledRoute {
+  path: string;
   regex: RegExp;
   paramNames: string[];
   score: number;
 }
-
-const compiledCache = new Map<string, CompiledRoute>();
 
 function normalizePath(path: string): string {
   if (path === "/") return path;
@@ -40,9 +39,6 @@ function scoreRoute(path: string): number {
 }
 
 function compileRoute(path: string): CompiledRoute {
-  const cached = compiledCache.get(path);
-  if (cached) return cached;
-
   const paramNames: string[] = [];
 
   const regexPath = path
@@ -67,51 +63,85 @@ function compileRoute(path: string): CompiledRoute {
       return "([^/]+)";
     });
 
-  const compiled: CompiledRoute = {
+  return {
+    path,
     regex: new RegExp(`^${regexPath}$`),
     paramNames,
     score: scoreRoute(path),
   };
-
-  compiledCache.set(path, compiled);
-  return compiled;
 }
 
 /**
- * Match a URL path against route definitions, returning the best match
- * 
- * Routes are scored and sorted automatically — static segments beat dynamic,
- * dynamic beats catch-all. Trailing slashes are normalized.
+ * RouteRegistry holds compiled and pre-sorted routes.
+ * It compiles routes exactly once to eliminate repeated regex creation and O(n log n) sorting.
+ */
+export class RouteRegistry {
+  private compiledRoutes: CompiledRoute[] = [];
+  private definitions: Map<string, RouteDef> = new Map();
+  private isSorted = false;
+
+  constructor(routes: RouteDef[] = []) {
+    for (const def of routes) {
+      this.register(def);
+    }
+  }
+
+  register(def: RouteDef) {
+    if (!this.definitions.has(def.path)) {
+      this.definitions.set(def.path, def);
+      this.compiledRoutes.push(compileRoute(def.path));
+      this.isSorted = false;
+    }
+  }
+
+  private sort() {
+    if (this.isSorted) return;
+    this.compiledRoutes.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      // Tie-break: longer path first
+      return b.path.length - a.path.length;
+    });
+    this.isSorted = true;
+  }
+
+  match(currentPath: string): RouteMatch | null {
+    if (!this.isSorted) this.sort();
+    
+    const normalized = normalizePath(currentPath);
+
+    for (const route of this.compiledRoutes) {
+      const match = normalized.match(route.regex);
+
+      if (match) {
+        const params = match
+          .slice(1)
+          .reduce<Record<string, string>>((acc, val, i) => {
+            acc[route.paramNames[i]!] = val;
+            return acc;
+          }, {});
+
+        const def = this.definitions.get(route.path);
+        
+        return { 
+          path: route.path, 
+          component: def?.component || null, 
+          params 
+        };
+      }
+    }
+
+    return null;
+  }
+}
+
+/**
+ * Match a URL path against route definitions
+ * This is kept for backwards compatibility internally if anything used it.
  */
 export function matchRoute(
   currentPath: string,
   routes: RouteDef[]
 ): RouteMatch | null {
-  const normalized = normalizePath(currentPath);
-
-  const sorted = [...routes].sort((a, b) => {
-    const sa = compileRoute(a.path).score;
-    const sb = compileRoute(b.path).score;
-    if (sb !== sa) return sb - sa;
-    // Tie-break: longer path first
-    return b.path.length - a.path.length;
-  });
-
-  for (const route of sorted) {
-    const compiled = compileRoute(route.path);
-    const match = normalized.match(compiled.regex);
-
-    if (match) {
-      const params = match
-        .slice(1)
-        .reduce<Record<string, string>>((acc, val, i) => {
-          acc[compiled.paramNames[i]!] = val;
-          return acc;
-        }, {});
-
-      return { path: route.path, component: route.component, params };
-    }
-  }
-
-  return null;
+  const registry = new RouteRegistry(routes);
+  return registry.match(currentPath);
 }

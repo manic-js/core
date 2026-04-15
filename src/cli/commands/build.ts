@@ -7,10 +7,10 @@ import {
   statSync,
   readdirSync,
 } from "node:fs";
-import { join } from "node:path";
 import bunPluginTailwind from "bun-plugin-tailwind";
 import { loadConfig } from "../../config";
-import { discoverRoutes, generateSitemap } from "../../server/lib/discovery";
+import { discoverRoutes, generateSitemap, writeRoutesManifest } from "../../server/lib/discovery";
+import { oxcPlugin } from "../plugins/oxc";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -23,13 +23,16 @@ function formatTime(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
-function getDirSize(dir: string): number {
+async function getDirSize(dir: string): Promise<number> {
   let size = 0;
   if (!existsSync(dir)) return 0;
 
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
-    size += entry.isDirectory() ? getDirSize(path) : statSync(path).size;
+    const path = `${dir}/${entry.name}`;
+    if (entry.isFile() && path.endsWith(".map")) {
+      continue;
+    }
+    size += entry.isDirectory() ? await getDirSize(path) : statSync(path).size;
   }
   return size;
 }
@@ -51,10 +54,24 @@ export async function build() {
 
   console.log(`\n${red(bold("■ MANIC"))} ${dim("build")}\n`);
 
+  // Auto-lint with oxlint before build
+  process.stdout.write(dim("● Linting with oxlint..."));
+  const lintResult = Bun.spawnSync(["oxlint", "app", "--deny", "correctness", "--deny", "perf", "--quiet"]);
+  
+  if (!lintResult.success) {
+    process.stdout.write(`\r${dim(red("● Linting failed      "))}\n`);
+    console.error(lintResult.stdout.toString());
+    console.error(lintResult.stderr.toString());
+    process.exit(1);
+  }
+  process.stdout.write(`\r${dim(green("● Linting passed      "))}\n`);
+
   rmSync(dist, { recursive: true, force: true });
   mkdirSync(`${dist}/client`, { recursive: true });
 
   process.stdout.write(dim("● Bundling client..."));
+
+  await writeRoutesManifest("app/~routes.generated.ts");
 
   const clientBuild = await Bun.build({
     entrypoints: ["./app/main.tsx"],
@@ -68,7 +85,7 @@ export async function build() {
       chunk: "chunks/[name]-[hash].[ext]",
       asset: "assets/[name]-[hash].[ext]",
     },
-    plugins: [bunPluginTailwind],
+    plugins: [oxcPlugin(), bunPluginTailwind],
   });
 
   process.stdout.write(`\r${dim(green("● Bundling client... done"))}\n`);
@@ -84,14 +101,14 @@ export async function build() {
   const jsFile = jsEntry?.path.split("/").pop() ?? "main.js";
   const cssFile = cssOutput?.path.split("/").pop();
 
-  if (existsSync("assets")) {
+  if (await Bun.file("assets").exists()) {
     cpSync("assets", `${dist}/client/assets`, { recursive: true });
   }
 
   let html = "";
   const htmlPath = "app/index.html";
 
-  if (existsSync(htmlPath)) {
+  if (await Bun.file(htmlPath).exists()) {
     html = await Bun.file(htmlPath).text();
 
     if (cssFile) {
@@ -146,7 +163,7 @@ export async function build() {
     process.stdout.write(dim("● Bundling API routes..."));
     const glob = new Bun.Glob("**/index.ts");
     for await (const file of glob.scan({ cwd: apiDir })) {
-      apiEntries.push(join(apiDir, file));
+      apiEntries.push(`${apiDir}/${file}`);
     }
 
     if (apiEntries.length > 0) {
@@ -164,6 +181,7 @@ export async function build() {
           minify: true,
           external: ["*"],
           naming: `${outName}.js`,
+          plugins: [oxcPlugin()],
         });
       }
       process.stdout.write(
@@ -208,6 +226,7 @@ export async function build() {
     naming: {
       entry: "server.js",
     },
+    plugins: [oxcPlugin()],
   });
 
   rmSync(prodEntry, { force: true });
@@ -221,9 +240,9 @@ export async function build() {
   process.stdout.write(`\r${dim(green("● Bundling server... done"))}\n`);
 
   const buildTime = performance.now() - buildStart;
-  const clientSize = getDirSize(`${dist}/client`);
+  const clientSize = await getDirSize(`${dist}/client`);
   const serverJsSize = statSync(`${dist}/server.js`).size;
-  const apiSize = existsSync(`${dist}/api`) ? getDirSize(`${dist}/api`) : 0;
+  const apiSize = existsSync(`${dist}/api`) ? await getDirSize(`${dist}/api`) : 0;
   const serverSize = serverJsSize + apiSize;
   const totalSize = clientSize + serverSize;
   const pageCount = await countRoutes("app/routes", "**/*.tsx");

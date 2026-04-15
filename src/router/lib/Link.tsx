@@ -17,6 +17,8 @@ interface LinkProps {
   viewTransitionName?: string;
   /** Preload the target route on hover @default true */
   prefetch?: boolean;
+  /** Replace the current history entry instead of pushing a new one */
+  replace?: boolean;
 }
 
 /** Client-side navigation link with route prefetching on hover */
@@ -27,12 +29,13 @@ export function Link({
   style,
   viewTransitionName,
   prefetch = true,
+  replace = false,
 }: LinkProps) {
   useRouter();
 
   const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    navigate(to);
+    navigate(to, { replace });
   };
 
   const handlePreload = () => {
