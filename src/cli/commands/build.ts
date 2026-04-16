@@ -84,9 +84,10 @@ export async function build() {
 
   // Auto-lint with oxlint before build
   process.stdout.write(dim("● Linting with oxlint..."));
-  const lintResult = await $`bun x oxlint . --deny-warnings --quiet`.quiet();
+  const oxlintBin = existsSync("node_modules/.bin/oxlint") ? "node_modules/.bin/oxlint" : "oxlint";
+  const lintResult = await $`${oxlintBin} . --deny-warnings`;
   
-  if (!lintResult.success) {
+  if (lintResult.exitCode !== 0) {
     process.stdout.write(`\r${dim(red("● Linting failed      "))}\n`);
     console.log(lintResult.stderr.toString());
     process.exit(1);
@@ -221,7 +222,7 @@ export async function build() {
       
       process.stdout.write(`\r${dim(green("● Bundling API routes... done"))}       \n`);
       
-      process.stdout.write(dim("● Minifying API with oxc-minify..."));
+      process.stdout.write(dim("��� Minifying API with oxc-minify..."));
       await minifyDir(`${dist}/api`);
       process.stdout.write(`\r${dim(green("● Minifying API with oxc-minify... done"))}\n`);
     }
