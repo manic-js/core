@@ -100,7 +100,7 @@ export async function createManicServer(options: {
   }
 
   if (config.mode === 'frontend') {
-    if (config.sitemap) {
+    if (config.sitemap && !prod) {
       const sitemapXml = generateSitemap(routes, config.sitemap);
       bunRoutes['/sitemap.xml'] = () =>
         new Response(sitemapXml, {
