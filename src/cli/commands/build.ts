@@ -1,6 +1,6 @@
 import { green, red, dim, bold } from "colorette";
 import { $ } from "bun";
-import { statSync, readdirSync, existsSync } from "node:fs"; // Keep only for complex stats/listing for now
+import { statSync, readdirSync, existsSync } from "fs";
 import bunPluginTailwind from "bun-plugin-tailwind";
 import { loadConfig } from "../../config";
 import { discoverRoutes, generateSitemap, writeRoutesManifest } from "../../server/lib/discovery";
@@ -84,15 +84,11 @@ export async function build() {
 
   // Auto-lint with oxlint before build
   process.stdout.write(dim("● Linting with oxlint..."));
-  const oxlintBin = existsSync("node_modules/.bin/oxlint") ? "node_modules/.bin/oxlint" : "oxlint";
-  const lintResult = Bun.spawnSync([oxlintBin, ".", "--deny-warnings", "--quiet"], {
-    cwd: process.cwd()
-  });
+  const lintResult = await $`bun x oxlint . --deny-warnings --quiet`.quiet();
   
   if (!lintResult.success) {
     process.stdout.write(`\r${dim(red("● Linting failed      "))}\n`);
-    const output = lintResult.stdout.toString() || lintResult.stderr.toString();
-    console.log(output);
+    console.log(lintResult.stderr.toString());
     process.exit(1);
   }
   process.stdout.write(`\r${dim(green("● Linting passed      "))}\n`);

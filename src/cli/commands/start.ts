@@ -1,5 +1,5 @@
 import { cyan, red } from "colorette";
-import { existsSync } from "node:fs";
+import { existsSync } from "fs";
 import { loadConfig } from "../../config";
 
 interface StartOptions {

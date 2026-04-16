@@ -1,6 +1,6 @@
 import { Elysia } from "elysia";
-import { existsSync } from "node:fs";
-import { isAbsolute, join } from "node:path";
+import { existsSync, join } from "fs";
+import { isAbsolute } from "path";
 
 export const apiLoaderPlugin = async (apiDir: string = "app/api") => {
   let app = new Elysia({ name: "manic.api" });

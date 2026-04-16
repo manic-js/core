@@ -1,5 +1,5 @@
 import { green, red, dim, bold, cyan, yellow } from "colorette";
-import { existsSync } from "node:fs";
+import { existsSync } from "fs";
 import { loadConfig } from "../../config";
 import { build } from "./build";
 
