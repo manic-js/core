@@ -49,30 +49,23 @@ async function countRoutes(dir: string, pattern: string): Promise<number> {
 
 async function minifyDir(dir: string) {
   const glob = new Bun.Glob("**/*.js");
-  for await (const file of glob.scan({ cwd: dir })) {
-    const filePath = `${dir}/${file}`;
+  const files: string[] = [];
+  for await (const file of glob.scan({ cwd: dir })) files.push(`${dir}/${file}`);
+
+  await Promise.all(files.map(async (filePath) => {
     const code = await Bun.file(filePath).text();
-    
     try {
       const minified = minifySync(filePath, code, {
-        compress: {
-          target: "es2022",
-        },
+        compress: { target: "es2022" },
         mangle: true,
-        codegen: {
-          removeWhitespace: true,
-        }
+        codegen: { removeWhitespace: true },
       });
-      
-      if (minified.errors && minified.errors.length > 0) {
-        console.warn(`[Manic Minify] Warning in ${file}:`, minified.errors);
-      }
-      
+      if (minified.errors?.length) console.warn(`[Manic Minify] Warning in ${filePath}:`, minified.errors);
       await Bun.write(filePath, minified.code);
     } catch (e) {
-      console.error(`[Manic Minify] Failed to minify ${file}:`, e);
+      console.error(`[Manic Minify] Failed to minify ${filePath}:`, e);
     }
-  }
+  }));
 }
 
 export async function build() {
@@ -120,10 +113,6 @@ export async function build() {
   });
 
   process.stdout.write(`\r${dim(green("● Bundling client... done"))}       \n`);
-  
-  process.stdout.write(dim("● Minifying with oxc-minify..."));
-  await minifyDir(`${dist}/client`);
-  process.stdout.write(`\r${dim(green("● Minifying with oxc-minify... done"))}\n`);
 
   if (!clientBuild.success) {
     console.log(red("Client build failed"));
@@ -239,10 +228,6 @@ export async function build() {
       }
       
       process.stdout.write(`\r${dim(green("● Bundling API routes... done"))}       \n`);
-      
-      process.stdout.write(dim("● Minifying API with oxc-minify..."));
-      await minifyDir(`${dist}/api`);
-      process.stdout.write(`\r${dim(green("● Minifying API with oxc-minify... done"))}\n`);
     }
   }
 
@@ -296,15 +281,14 @@ export async function build() {
   
   process.stdout.write(`\r${dim(green("● Bundling server... done"))}       \n`);
 
-  process.stdout.write(dim("● Minifying server with oxc-minify..."));
-  const serverPath = `${dist}/server.js`;
-  const serverContent = await Bun.file(serverPath).text();
-  const minifiedServer = minifySync(serverPath, serverContent, {
-    compress: { target: "es2022" },
-    mangle: true,
-  });
-  await Bun.write(serverPath, minifiedServer.code);
-  process.stdout.write(`\r${dim(green("● Minifying server with oxc-minify... done"))}\n`);
+  // Minify all output in parallel (client + api + server)
+  process.stdout.write(dim("● Minifying with oxc-minify..."));
+  await Promise.all([
+    minifyDir(`${dist}/client`),
+    existsSync(`${dist}/api`) ? minifyDir(`${dist}/api`) : Promise.resolve(),
+    minifyDir(dist), // catches server.js
+  ]);
+  process.stdout.write(`\r${dim(green("● Minifying with oxc-minify... done"))}\n`);
 
   const buildTime = performance.now() - buildStart;
   const clientSize = await getDirSize(`${dist}/client`);
