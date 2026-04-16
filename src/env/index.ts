@@ -5,27 +5,27 @@ export interface EnvSummary {
   loaded: boolean;
 }
 
-const PUBLIC_PREFIX = "MANIC_PUBLIC_";
+const PUBLIC_PREFIX = 'MANIC_PUBLIC_';
 let loadedEnvVars: Set<string> = new Set();
 let envLoaded = false;
 
 export async function loadEnvFiles(): Promise<void> {
   if (envLoaded) return;
 
-  const envFiles = [".env", ".env.local"];
+  const envFiles = ['.env', '.env.local'];
 
   for (const file of envFiles) {
     const envFile = Bun.file(file);
 
     if (await envFile.exists()) {
       const content = await envFile.text();
-      const lines = content.split("\n");
+      const lines = content.split('\n');
 
       for (const line of lines) {
         const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) continue;
+        if (!trimmed || trimmed.startsWith('#')) continue;
 
-        const eqIndex = trimmed.indexOf("=");
+        const eqIndex = trimmed.indexOf('=');
         if (eqIndex === -1) continue;
 
         const key = trimmed.slice(0, eqIndex).trim();

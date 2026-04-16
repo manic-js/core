@@ -18,7 +18,14 @@ export interface SitemapConfig {
   /** Base URL for the site (e.g. "https://example.com") */
   hostname: string;
   /** How frequently pages change @default "weekly" */
-  changefreq?: "always" | "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "never";
+  changefreq?:
+    | 'always'
+    | 'hourly'
+    | 'daily'
+    | 'weekly'
+    | 'monthly'
+    | 'yearly'
+    | 'never';
   /** Priority of URLs relative to other URLs on the site @default 0.8 */
   priority?: number;
   /** Route paths to exclude from the sitemap */
@@ -50,12 +57,18 @@ export interface ManicPluginContext {
 
 /** Extended context for server plugins */
 export interface ManicServerPluginContext extends ManicPluginContext {
-  addRoute(path: string, handler: (req: Request) => Response | Promise<Response>): void;
+  addRoute(
+    path: string,
+    handler: (req: Request) => Response | Promise<Response>
+  ): void;
 }
 
 /** Extended context for build plugins */
 export interface ManicBuildPluginContext extends ManicPluginContext {
-  emitClientFile(relativePath: string, content: string | Uint8Array): Promise<void>;
+  emitClientFile(
+    relativePath: string,
+    content: string | Uint8Array
+  ): Promise<void>;
 }
 
 /** Plugin interface for extending Manic */
@@ -68,7 +81,7 @@ export interface ManicPlugin {
 /** Main configuration object for a Manic application */
 export interface ManicConfig {
   /** Server mode — "fullstack" includes Hono API support, "frontend" is pure SPA @default "fullstack" */
-  mode?: "fullstack" | "frontend";
+  mode?: 'fullstack' | 'frontend';
 
   app?: {
     /** Application name, shown in browser title */
@@ -88,14 +101,14 @@ export interface ManicConfig {
     /** Preserve scroll position on navigation @default false */
     preserveScroll?: boolean;
     /** Scroll behavior when navigating @default "auto" */
-    scrollBehavior?: "auto" | "smooth";
+    scrollBehavior?: 'auto' | 'smooth';
   };
 
   build?: {
     /** Minify production bundles @default true */
     minify?: boolean;
     /** Generate sourcemaps @default "inline" */
-    sourcemap?: boolean | "inline" | "external";
+    sourcemap?: boolean | 'inline' | 'external';
     /** Enable code splitting @default true */
     splitting?: boolean;
     /** Output directory for production builds @default ".manic" */
@@ -123,25 +136,25 @@ export interface ManicConfig {
 }
 
 const DEFAULT_CONFIG: ManicConfig = {
-  mode: "fullstack",
-  app: { name: "Manic App" },
+  mode: 'fullstack',
+  app: { name: 'Manic App' },
   server: { port: 6070, hmr: true },
   router: {
     viewTransitions: true,
     preserveScroll: false,
-    scrollBehavior: "auto",
+    scrollBehavior: 'auto',
   },
   build: {
     minify: true,
-    sourcemap: "inline",
+    sourcemap: 'inline',
     splitting: true,
-    outdir: ".manic",
+    outdir: '.manic',
   },
   oxc: {
-    target: "esnext",
+    target: 'esnext',
     rewriteImportExtensions: true,
     refresh: true,
-  }
+  },
 };
 
 /** Define a typed Manic configuration — use in manic.config.ts */
@@ -157,7 +170,7 @@ export async function loadConfig(
 ): Promise<ManicConfig> {
   if (cachedConfig) return cachedConfig;
 
-  const configFiles = ["manic.config.ts", "manic.config.js"];
+  const configFiles = ['manic.config.ts', 'manic.config.js'];
 
   for (const file of configFiles) {
     const configPath = `${cwd}/${file}`;

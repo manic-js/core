@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType } from 'react';
 
 /** Route definition with path pattern, component, and optional lazy loader */
 export interface RouteDef {

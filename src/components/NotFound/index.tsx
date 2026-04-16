@@ -1,4 +1,4 @@
-import { BlinkingAsciiDots } from "./DotBackground";
+import { BlinkingAsciiDots } from './DotBackground';
 
 export function NotFound() {
   return (

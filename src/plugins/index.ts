@@ -1,2 +1,2 @@
-export * from "./lib/static";
-export * from "./lib/api";
+export * from './lib/static';
+export * from './lib/api';

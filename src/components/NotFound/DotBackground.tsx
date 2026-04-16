@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface AsciiDotsFullscreenProps {
   density?: number;
@@ -6,7 +6,7 @@ interface AsciiDotsFullscreenProps {
 }
 
 const hexToRgb = (hex: string) => {
-  const parsed = hex.replace("#", "");
+  const parsed = hex.replace('#', '');
   const bigint = parseInt(parsed, 16);
   if (parsed.length === 3) {
     const r = (bigint >> 8) & 0xf;
@@ -31,8 +31,8 @@ export const BlinkingAsciiDots = ({
   const animationFrameId = useRef<number | null>(null);
   const mouseRef = useRef({ x: 0, y: 0, isDown: false });
   const [colors, setColors] = useState({
-    backgroundColor: "#f0eee6",
-    textColor: "14, 14, 14",
+    backgroundColor: '#f0eee6',
+    textColor: '14, 14, 14',
   });
   const colorsRef = useRef(colors);
 
@@ -40,7 +40,7 @@ export const BlinkingAsciiDots = ({
     colorsRef.current = colors;
   }, [colors]);
 
-  const CHARS = "⠁⠂⠄⠈⠐⠠⡀⢀⠃⠅⠘⠨⠊⠋⠌⠍⠎⠏⠑⠒⠓⠔⠕⠖⠗⠙⠚⠛⠜⠝⠞⠟⠡⠢⠣⠤⠥⠦⠧⠩⠪⠫⠬⠭⠮⠯⠱⠲⠳⠴⠵⠶⠷⠹⠺⠻⠼⠽⠾⠿";
+  const CHARS = '⠁⠂⠄⠈⠐⠠⡀⢀⠃⠅⠘⠨⠊⠋⠌⠍⠎⠏⠑⠒⠓⠔⠕⠖⠗⠙⠚⠛⠜⠝⠞⠟⠡⠢⠣⠤⠥⠦⠧⠩⠪⠫⠬⠭⠮⠯⠱⠲⠳⠴⠵⠶⠷⠹⠺⠻⠼⠽⠾⠿';
 
   const calculateGrid = useCallback(() => {
     if (!containerRef.current) return { cols: 0, rows: 0, cellSize: 0 };
@@ -59,7 +59,7 @@ export const BlinkingAsciiDots = ({
     const dpr = window.devicePixelRatio || 1;
     canvas.width = containerRef.current.clientWidth * dpr;
     canvas.height = containerRef.current.clientHeight * dpr;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }, []);
 
@@ -83,15 +83,15 @@ export const BlinkingAsciiDots = ({
   const animate = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || !containerRef.current) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
     timeRef.current += animationSpeed * 0.016;
     const { cols, rows, cellSize } = calculateGrid();
     ctx.fillStyle = colorsRef.current.backgroundColor;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.font = `${cellSize}px monospace`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         const posX = x * cellSize + cellSize / 2;
@@ -111,7 +111,7 @@ export const BlinkingAsciiDots = ({
             CHARS[Math.min(CHARS.length - 1, Math.max(0, charIndex))];
           const opacity = normalizedValue * 0.3;
           ctx.fillStyle = `rgba(${colorsRef.current.textColor}, ${opacity})`;
-          ctx.fillText(char ?? "", posX, posY);
+          ctx.fillText(char ?? '', posX, posY);
         }
       }
     }
@@ -129,14 +129,14 @@ export const BlinkingAsciiDots = ({
   useEffect(() => {
     if (!containerRef.current) return;
     handleResize();
-    window.addEventListener("resize", handleResize);
-    containerRef.current.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener('resize', handleResize);
+    containerRef.current.addEventListener('mousemove', handleMouseMove);
     animationFrameId.current = requestAnimationFrame(animate);
 
     const getColors = () => {
       const style = getComputedStyle(document.documentElement);
-      const bg = style.getPropertyValue("--color-background").trim();
-      const fg = style.getPropertyValue("--color-foreground").trim();
+      const bg = style.getPropertyValue('--color-background').trim();
+      const fg = style.getPropertyValue('--color-foreground').trim();
       return { backgroundColor: bg, textColor: hexToRgb(fg) };
     };
 
@@ -145,20 +145,20 @@ export const BlinkingAsciiDots = ({
     const observer = new MutationObserver(updateThemeColors);
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["class"],
+      attributeFilter: ['class'],
     });
 
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    mq.addEventListener("change", updateThemeColors);
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', updateThemeColors);
 
     updateThemeColors();
 
     return () => {
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener('resize', handleResize);
       if (containerRef.current) {
-        containerRef.current.removeEventListener("mousemove", handleMouseMove);
+        containerRef.current.removeEventListener('mousemove', handleMouseMove);
       }
-      mq.removeEventListener("change", updateThemeColors);
+      mq.removeEventListener('change', updateThemeColors);
       observer.disconnect();
       if (animationFrameId.current) {
         cancelAnimationFrame(animationFrameId.current);

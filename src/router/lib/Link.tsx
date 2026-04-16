@@ -3,9 +3,9 @@ import {
   type MouseEvent,
   type ReactNode,
   type CSSProperties,
-} from "react";
-import { useRouter } from "./context";
-import { navigate, preloadRoute } from "./Router";
+} from 'react';
+import { useRouter } from './context';
+import { navigate, preloadRoute } from './Router';
 
 interface LinkProps {
   /** Target path to navigate to */
@@ -49,7 +49,7 @@ export function Link({
     : style || {};
 
   return createElement(
-    "a",
+    'a',
     {
       href: to,
       className,

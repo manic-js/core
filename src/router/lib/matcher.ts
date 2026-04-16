@@ -1,8 +1,8 @@
-import type { RouteDef } from "./types";
+import type { RouteDef } from './types';
 
 interface RouteMatch {
   path: string;
-  component: RouteDef["component"];
+  component: RouteDef['component'];
   params: Record<string, string>;
 }
 
@@ -14,19 +14,19 @@ interface CompiledRoute {
 }
 
 function normalizePath(path: string): string {
-  if (path === "/") return path;
-  return path.endsWith("/") ? path.slice(0, -1) : path;
+  if (path === '/') return path;
+  return path.endsWith('/') ? path.slice(0, -1) : path;
 }
 
 function scoreRoute(path: string): number {
-  const segments = path.split("/").filter(Boolean);
+  const segments = path.split('/').filter(Boolean);
   let score = 0;
 
   for (const segment of segments) {
-    if (segment.startsWith(":...") || segment.startsWith("[...")) {
+    if (segment.startsWith(':...') || segment.startsWith('[...')) {
       // Catch-all: lowest priority
       score += 1;
-    } else if (segment.startsWith(":") || segment.startsWith("[")) {
+    } else if (segment.startsWith(':') || segment.startsWith('[')) {
       // Dynamic segment
       score += 10;
     } else {
@@ -45,22 +45,22 @@ function compileRoute(path: string): CompiledRoute {
     // Catch-all: :...param
     .replace(/:\.\.\.([^/]+)/g, (_, key) => {
       paramNames.push(key);
-      return "(.+)";
+      return '(.+)';
     })
     // Catch-all: [...param]
     .replace(/\[\.\.\.([^\]]+)\]/g, (_, key) => {
       paramNames.push(key);
-      return "(.+)";
+      return '(.+)';
     })
     // Dynamic: :param
     .replace(/:([^/]+)/g, (_, key) => {
       paramNames.push(key);
-      return "([^/]+)";
+      return '([^/]+)';
     })
     // Dynamic: [param]
     .replace(/\[([^\]]+)\]/g, (_, key) => {
       paramNames.push(key);
-      return "([^/]+)";
+      return '([^/]+)';
     });
 
   return {
@@ -106,7 +106,7 @@ export class RouteRegistry {
 
   match(currentPath: string): RouteMatch | null {
     if (!this.isSorted) this.sort();
-    
+
     const normalized = normalizePath(currentPath);
 
     for (const route of this.compiledRoutes) {
@@ -121,11 +121,11 @@ export class RouteRegistry {
           }, {});
 
         const def = this.definitions.get(route.path);
-        
-        return { 
-          path: route.path, 
-          component: def?.component || null, 
-          params 
+
+        return {
+          path: route.path,
+          component: def?.component || null,
+          params,
         };
       }
     }

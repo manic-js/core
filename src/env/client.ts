@@ -4,10 +4,10 @@ declare global {
   }
 }
 
-const PUBLIC_PREFIX = "MANIC_PUBLIC_";
+const PUBLIC_PREFIX = 'MANIC_PUBLIC_';
 
 export function getEnv(key: string): string | undefined {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return process.env[key];
   }
 
@@ -22,7 +22,7 @@ export function getEnv(key: string): string | undefined {
 }
 
 export function getPublicEnv(): Record<string, string> {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     const publicEnv: Record<string, string> = {};
     for (const [key, value] of Object.entries(process.env)) {
       if (key.startsWith(PUBLIC_PREFIX) && value !== undefined) {

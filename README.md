@@ -26,11 +26,11 @@ bun dev
 ## Configuration
 
 ```typescript
-import { defineConfig } from "manicjs/config";
+import { defineConfig } from 'manicjs/config';
 
 export default defineConfig({
   app: {
-    name: "My App",
+    name: 'My App',
   },
   server: {
     port: 6070,

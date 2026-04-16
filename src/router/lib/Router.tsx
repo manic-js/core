@@ -7,13 +7,13 @@ import {
   Component,
   type ComponentType,
   type ErrorInfo,
-} from "react";
-import { flushSync } from "react-dom";
-import { NotFound } from "../../components/NotFound";
-import { ServerError } from "../../components/ServerError";
-import { RouterContext } from "./context";
-import { RouteRegistry } from "./matcher";
-import type { RouteDef } from "./types";
+} from 'react';
+import { flushSync } from 'react-dom';
+import { NotFound } from '../../components/NotFound';
+import { ServerError } from '../../components/ServerError';
+import { RouterContext } from './context';
+import { RouteRegistry } from './matcher';
+import type { RouteDef } from './types';
 
 type LazyLoader = () => Promise<{ default: ComponentType }>;
 
@@ -39,7 +39,7 @@ declare global {
 /** Hook to access URL search parameters reactively — updates on popstate */
 function useQueryParams(): URLSearchParams {
   const [params, setParams] = useState(() =>
-    typeof window !== "undefined"
+    typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search)
       : new URLSearchParams()
   );
@@ -47,8 +47,8 @@ function useQueryParams(): URLSearchParams {
   useEffect(() => {
     const update = (): void =>
       setParams(new URLSearchParams(window.location.search));
-    window.addEventListener("popstate", update);
-    return () => window.removeEventListener("popstate", update);
+    window.addEventListener('popstate', update);
+    return () => window.removeEventListener('popstate', update);
   }, []);
 
   return params;
@@ -86,13 +86,13 @@ async function loadComponent(
 
 /** Preload a route's component module — called on link hover for instant navigation */
 export function preloadRoute(path: string): void {
-  if (typeof window === "undefined" || !window.__MANIC_ROUTES__) return;
+  if (typeof window === 'undefined' || !window.__MANIC_ROUTES__) return;
 
   const routes = window.__MANIC_ROUTES__;
-  
+
   // Use registry to match the actual route loader
   const routeDefs = Object.entries(routes).map(([p, loader]) => ({
-    path: p || "/",
+    path: p || '/',
     component: null,
     loader,
   }));
@@ -102,7 +102,7 @@ export function preloadRoute(path: string): void {
   if (match) {
     const loader = routes[match.path];
     if (loader && !componentCache.has(match.path)) {
-      loader().then((mod) => componentCache.set(match.path, mod.default));
+      loader().then(mod => componentCache.set(match.path, mod.default));
     }
   }
 }
@@ -116,7 +116,7 @@ export function setViewTransitions(enabled: boolean): void {
 
 /** Navigate to a path programmatically */
 export function navigate(to: string, options?: { replace?: boolean }): void {
-  if (typeof window !== "undefined" && window.__MANIC_NAVIGATE__) {
+  if (typeof window !== 'undefined' && window.__MANIC_NAVIGATE__) {
     window.__MANIC_NAVIGATE__(to, options);
   }
 }
@@ -146,7 +146,7 @@ function useErrorPage(
 
   useEffect(() => {
     if (loader && !errorPageCache.has(key)) {
-      loadErrorPage(key, loader).then((C) => setComponent(() => C));
+      loadErrorPage(key, loader).then(C => setComponent(() => C));
     }
   }, [key, loader]);
 
@@ -154,7 +154,11 @@ function useErrorPage(
 }
 
 class ErrorBoundary extends Component<
-  { fallback: React.ReactNode; children: React.ReactNode; onError: (error: Error) => void },
+  {
+    fallback: React.ReactNode;
+    children: React.ReactNode;
+    onError: (error: Error) => void;
+  },
   { hasError: boolean }
 > {
   constructor(props: any) {
@@ -167,7 +171,7 @@ class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Router caught an error during render:");
+    console.error('Router caught an error during render:');
     console.error(error, errorInfo);
     this.props.onError(error);
   }
@@ -187,9 +191,11 @@ export function Router({
   routes?: Record<string, LazyLoader>;
 }): React.ReactElement {
   const [currentPath, setCurrentPath] = useState(
-    typeof window !== "undefined" ? window.location.pathname : "/"
+    typeof window !== 'undefined' ? window.location.pathname : '/'
   );
-  const [LoadedComponent, setLoadedComponent] = useState<ComponentType | null>(null);
+  const [LoadedComponent, setLoadedComponent] = useState<ComponentType | null>(
+    null
+  );
   const [routeParams, setRouteParams] = useState<Record<string, string>>({});
   const [errorDetails, setErrorDetails] = useState<Error | null>(null);
   const isNavigating = useRef(false);
@@ -197,25 +203,29 @@ export function Router({
 
   const rawRoutes: Record<string, LazyLoader> =
     manualRoutes ??
-    (typeof window !== "undefined" ? window.__MANIC_ROUTES__ ?? {} : {});
+    (typeof window !== 'undefined' ? (window.__MANIC_ROUTES__ ?? {}) : {});
 
   const errorPages =
-    typeof window !== "undefined" ? window.__MANIC_ERROR_PAGES__ : undefined;
+    typeof window !== 'undefined' ? window.__MANIC_ERROR_PAGES__ : undefined;
 
-  const NotFoundPage = useErrorPage("notFound", errorPages?.notFound, NotFound);
-  const ErrorPage = useErrorPage("error", errorPages?.error, ServerError);
+  const NotFoundPage = useErrorPage('notFound', errorPages?.notFound, NotFound);
+  const ErrorPage = useErrorPage('error', errorPages?.error, ServerError);
 
   // Compile routes into a registry exactly once
   const registry = useMemo(() => {
     const defs = Object.entries(rawRoutes).map(([path, loader]) => ({
-      path: path || "/",
+      path: path || '/',
       component: null,
       loader,
     }));
     return new RouteRegistry(defs);
   }, [rawRoutes]);
 
-  const loadAndTransition = async (path: string, isPopState: boolean, replace: boolean = false) => {
+  const loadAndTransition = async (
+    path: string,
+    isPopState: boolean,
+    replace: boolean = false
+  ) => {
     if (abortController.current) {
       abortController.current.abort();
     }
@@ -225,8 +235,9 @@ export function Router({
     const match = registry.match(path);
     if (!match) {
       if (!isPopState) {
-        if (replace) window.history.replaceState({ scrollY: window.scrollY }, "", path);
-        else window.history.pushState({ scrollY: window.scrollY }, "", path);
+        if (replace)
+          window.history.replaceState({ scrollY: window.scrollY }, '', path);
+        else window.history.pushState({ scrollY: window.scrollY }, '', path);
       }
       setCurrentPath(path);
       setLoadedComponent(null);
@@ -239,34 +250,41 @@ export function Router({
       isNavigating.current = true;
       try {
         const Cmp = await loadComponent(match.path, matchedLoader, signal);
-        
+
         if (signal.aborted) return;
 
         const updateState = () => {
           if (!isPopState) {
-             // Save current scroll position before pushing
-             window.history.replaceState({ scrollY: window.scrollY }, "");
-             if (replace) {
-               window.history.replaceState({ scrollY: 0 }, "", path);
-             } else {
-               window.history.pushState({ scrollY: 0 }, "", path);
-             }
+            // Save current scroll position before pushing
+            window.history.replaceState({ scrollY: window.scrollY }, '');
+            if (replace) {
+              window.history.replaceState({ scrollY: 0 }, '', path);
+            } else {
+              window.history.pushState({ scrollY: 0 }, '', path);
+            }
           }
 
           setCurrentPath(path);
           setLoadedComponent(() => Cmp);
           setRouteParams(match.params);
           setErrorDetails(null);
-          
+
           if (!isPopState && document.body) {
-             // ensure we scroll to top on new navigation, leaving popstate intact
-             window.scrollTo(0, 0);
-          } else if (isPopState && window.history.state?.scrollY !== undefined) {
-             window.scrollTo(0, window.history.state.scrollY);
+            // ensure we scroll to top on new navigation, leaving popstate intact
+            window.scrollTo(0, 0);
+          } else if (
+            isPopState &&
+            window.history.state?.scrollY !== undefined
+          ) {
+            window.scrollTo(0, window.history.state.scrollY);
           }
         };
 
-        const shouldAnimate = viewTransitionsEnabled && document.startViewTransition && !isPopState && !replace;
+        const shouldAnimate =
+          viewTransitionsEnabled &&
+          document.startViewTransition &&
+          !isPopState &&
+          !replace;
 
         if (shouldAnimate) {
           try {
@@ -290,8 +308,8 @@ export function Router({
   };
 
   useEffect(() => {
-    if ("scrollRestoration" in window.history) {
-      window.history.scrollRestoration = "manual";
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
     }
 
     // Assign globally for <Link> and manual navigation
@@ -303,15 +321,15 @@ export function Router({
       loadAndTransition(window.location.pathname, true);
     };
 
-    window.addEventListener("popstate", handlePopState);
-    
+    window.addEventListener('popstate', handlePopState);
+
     // Initial mount load
     if (componentCache.size === 0) {
       loadAndTransition(window.location.pathname, true, true);
     }
 
     return () => {
-      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener('popstate', handlePopState);
       delete window.__MANIC_NAVIGATE__;
     };
   }, [registry]);
@@ -344,7 +362,7 @@ export function Router({
       ErrorBoundary,
       {
         fallback: createElement(ErrorPage as any, { error: errorDetails }),
-        onError: (err) => setErrorDetails(err),
+        onError: err => setErrorDetails(err),
       },
       createElement(LoadedComponent, null)
     )

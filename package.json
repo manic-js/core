@@ -2,24 +2,29 @@
   "name": "manicjs",
   "version": "0.7.2",
   "description": "Stupidly fast, Crazy light React framework powered by Bun and Hono",
-  "type": "module",
+  "keywords": [
+    "bun",
+    "framework",
+    "fullstack",
+    "hmr",
+    "hono",
+    "react"
+  ],
   "license": "GPL-3.0",
   "author": "Rahuletto",
   "repository": {
     "type": "git",
     "url": "https://github.com/Rahuletto/manic"
   },
-  "keywords": [
-    "react",
-    "bun",
-    "hono",
-    "framework",
-    "fullstack",
-    "hmr"
-  ],
   "bin": {
     "manic": "./src/cli/index.ts"
   },
+  "files": [
+    "index.ts",
+    "src/**/*",
+    "README.md"
+  ],
+  "type": "module",
   "main": "./index.ts",
   "types": "./index.ts",
   "exports": {
@@ -60,15 +65,6 @@
       "import": "./src/transitions/index.ts"
     }
   },
-  "files": [
-    "index.ts",
-    "src/**/*",
-    "README.md"
-  ],
-  "peerDependencies": {
-    "react": ">=18.0.0",
-    "react-dom": ">=18.0.0"
-  },
   "dependencies": {
     "bun-plugin-tailwind": "^0.1.2",
     "colorette": "^2.0.20",
@@ -86,6 +82,10 @@
     "react-dom": "^19.0.0",
     "react-refresh": "^0.18.0",
     "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
   },
   "engines": {
     "bun": ">=1.0.0"

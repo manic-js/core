@@ -1,5 +1,5 @@
-import { watch } from "fs/promises";
-import { cyan, dim, yellow } from "colorette";
+import { watch } from 'fs/promises';
+import { cyan, dim, yellow } from 'colorette';
 
 export interface RouteInfo {
   path: string;
@@ -7,32 +7,32 @@ export interface RouteInfo {
 }
 
 export async function discoverRoutes(
-  routesDir: string = "app/routes"
+  routesDir: string = 'app/routes'
 ): Promise<RouteInfo[]> {
   const routes: RouteInfo[] = [];
-  const glob = new Bun.Glob("**/*.{tsx,ts}");
+  const glob = new Bun.Glob('**/*.{tsx,ts}');
 
   for await (const file of glob.scan({ cwd: routesDir })) {
-    if (file.startsWith("~")) continue;
+    if (file.startsWith('~')) continue;
 
     const filePath = `${routesDir}/${file}`;
 
     let urlPath = file
-      .replace(/\.tsx?$/, "")
-      .replace(/\/index$/, "")
-      .replace(/^index$/, "");
+      .replace(/\.tsx?$/, '')
+      .replace(/\/index$/, '')
+      .replace(/^index$/, '');
 
     // Strip route groups: (groupName)/ → nothing
-    urlPath = urlPath.replace(/\(([^)]+)\)\//g, "");
+    urlPath = urlPath.replace(/\(([^)]+)\)\//g, '');
     // Handle route group as the only segment
-    urlPath = urlPath.replace(/\(([^)]+)\)$/, "");
+    urlPath = urlPath.replace(/\(([^)]+)\)$/, '');
 
     // Convert catch-all [...slug] to :...slug
-    urlPath = urlPath.replace(/\[\.\.\.([^\]]+)\]/g, ":...$1");
+    urlPath = urlPath.replace(/\[\.\.\.([^\]]+)\]/g, ':...$1');
     // Convert dynamic [param] to :param
-    urlPath = urlPath.replace(/\[([^\]]+)\]/g, ":$1");
+    urlPath = urlPath.replace(/\[([^\]]+)\]/g, ':$1');
 
-    urlPath = urlPath === "" ? "/" : `/${urlPath}`;
+    urlPath = urlPath === '' ? '/' : `/${urlPath}`;
 
     routes.push({ path: urlPath, filePath });
   }
@@ -41,11 +41,20 @@ export async function discoverRoutes(
 }
 
 export async function discoverFavicon(
-  assetsDir: string = "assets"
+  assetsDir: string = 'assets'
 ): Promise<string | null> {
-  const priorities = ["favicon.svg", "favicon.png", "favicon.ico", "icon.svg", "icon.png", "icon.ico"];
+  const priorities = [
+    'favicon.svg',
+    'favicon.png',
+    'favicon.ico',
+    'icon.svg',
+    'icon.png',
+    'icon.ico',
+  ];
   // Check all in parallel, pick first hit in priority order
-  const results = await Promise.all(priorities.map(f => Bun.file(`${assetsDir}/${f}`).exists()));
+  const results = await Promise.all(
+    priorities.map(f => Bun.file(`${assetsDir}/${f}`).exists())
+  );
   const idx = results.indexOf(true);
   return idx !== -1 ? `/assets/${priorities[idx]}` : null;
 }
@@ -56,7 +65,7 @@ export interface ErrorPages {
 }
 
 export async function discoverErrorPages(
-  routesDir: string = "app/routes"
+  routesDir: string = 'app/routes'
 ): Promise<ErrorPages> {
   const result: ErrorPages = {};
 
@@ -74,51 +83,56 @@ export async function discoverErrorPages(
 }
 
 export async function generateRoutesManifest(
-  routesDir: string = "app/routes"
+  routesDir: string = 'app/routes'
 ): Promise<string> {
   const routes = await discoverRoutes(routesDir);
   const errorPages = await discoverErrorPages(routesDir);
 
   const routeEntries = routes
-    .map((r) => {
-      const importPath = `./${r.filePath.replace("app/", "")}`;
+    .map(r => {
+      const importPath = `./${r.filePath.replace('app/', '')}`;
       return `  "${r.path}": () => import("${importPath}"),`;
     })
-    .join("\n");
+    .join('\n');
 
   return `export const routes = {
 ${routeEntries}
 };
 
-export const notFoundPage = ${errorPages.notFound ? '() => import("./routes/~404.tsx")' : "undefined"};
-export const errorPage = ${errorPages.error ? '() => import("./routes/~500.tsx")' : "undefined"};
+export const notFoundPage = ${errorPages.notFound ? '() => import("./routes/~404.tsx")' : 'undefined'};
+export const errorPage = ${errorPages.error ? '() => import("./routes/~500.tsx")' : 'undefined'};
 `;
 }
 
 export function generateSitemap(
   routes: RouteInfo[],
-  config: { hostname: string; changefreq?: string; priority?: number; exclude?: string[] }
+  config: {
+    hostname: string;
+    changefreq?: string;
+    priority?: number;
+    exclude?: string[];
+  }
 ): string {
-  const hostname = config.hostname.replace(/\/$/, "");
-  const changefreq = config.changefreq ?? "weekly";
+  const hostname = config.hostname.replace(/\/$/, '');
+  const changefreq = config.changefreq ?? 'weekly';
   const priority = config.priority ?? 0.8;
   const exclude = config.exclude ?? [];
 
   const urls = routes
-    .filter((r) => {
-      if (r.path.includes(":")) return false;
+    .filter(r => {
+      if (r.path.includes(':')) return false;
       if (exclude.includes(r.path)) return false;
       return true;
     })
-    .map((r) => {
-      const loc = r.path === "/" ? hostname + "/" : hostname + r.path;
+    .map(r => {
+      const loc = r.path === '/' ? hostname + '/' : hostname + r.path;
       return `  <url>
     <loc>${loc}</loc>
     <changefreq>${changefreq}</changefreq>
     <priority>${priority}</priority>
   </url>`;
     })
-    .join("\n");
+    .join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -127,26 +141,23 @@ ${urls}
 }
 
 async function touchManicEntry(
-  outPath: string = "app/~routes.generated.ts"
+  outPath: string = 'app/~routes.generated.ts'
 ): Promise<void> {
   // Derive ~manic.ts path from the output path's directory parent
-  const appDir = outPath.substring(0, outPath.lastIndexOf("/"));
+  const appDir = outPath.substring(0, outPath.lastIndexOf('/'));
   const manicPath = `${appDir}/../~manic.ts`;
   const file = Bun.file(manicPath);
   if (await file.exists()) {
     const content = await file.text();
     // Update or append a timestamp comment to trigger bun --watch
     const timestampComment = `// ~manic-touch: ${Date.now()}`;
-    const updated = content.replace(
-      /\n?\/\/ ~manic-touch: \d+$/,
-      ""
-    );
-    await Bun.write(manicPath, updated + "\n" + timestampComment);
+    const updated = content.replace(/\n?\/\/ ~manic-touch: \d+$/, '');
+    await Bun.write(manicPath, updated + '\n' + timestampComment);
   }
 }
 
 export async function writeRoutesManifest(
-  outPath: string = "app/~routes.generated.ts",
+  outPath: string = 'app/~routes.generated.ts',
   touch: boolean = false
 ): Promise<string> {
   const content = await generateRoutesManifest();
@@ -166,10 +177,10 @@ export async function watchRoutes(
     if (
       event.filename &&
       /\.tsx?$/.test(event.filename) &&
-      !event.filename.startsWith("~")
+      !event.filename.startsWith('~')
     ) {
       const filename = event.filename;
-      const isStructureChange = event.eventType === "rename";
+      const isStructureChange = event.eventType === 'rename';
 
       if (debounceTimer) clearTimeout(debounceTimer);
 
@@ -177,14 +188,14 @@ export async function watchRoutes(
         if (isStructureChange) {
           const startTime = performance.now();
           // Only trigger server restart (touch: true) if a file was added/deleted
-          await writeRoutesManifest("app/~routes.generated.ts", true);
+          await writeRoutesManifest('app/~routes.generated.ts', true);
           const duration = Math.round(performance.now() - startTime);
           const routeName = filename
-            .replace(/\.tsx?$/, "")
-            .replace(/\/index$/, "")
-            .replace(/^index$/, "/");
-  
-          onChange(routeName || "/", duration);
+            .replace(/\.tsx?$/, '')
+            .replace(/\/index$/, '')
+            .replace(/^index$/, '/');
+
+          onChange(routeName || '/', duration);
         }
       }, 50);
     }
@@ -192,9 +203,9 @@ export async function watchRoutes(
 }
 
 export function logRouteChange(filename: string, durationMs: number): void {
-  const route = filename.startsWith("/") ? filename : `/${filename}`;
+  const route = filename.startsWith('/') ? filename : `/${filename}`;
   console.log(
-    `${yellow("[Manic]")} ${dim("Route updated:")} ${cyan(route)} ${dim(
+    `${yellow('[Manic]')} ${dim('Route updated:')} ${cyan(route)} ${dim(
       `(${durationMs}ms)`
     )}`
   );
