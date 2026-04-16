@@ -1,6 +1,6 @@
 {
   "name": "manicjs",
-  "version": "0.7.0-beta.0",
+  "version": "0.7.0",
   "description": "Stupidly fast, Crazy light React framework powered by Bun and Elysia",
   "type": "module",
   "license": "GPL-3.0",
@@ -75,6 +75,8 @@
     "bun-plugin-tailwind": "^0.1.2",
     "colorette": "^2.0.20",
     "elysia": "^1.3.20",
+    "oxc-minify": "^0.125.0",
+    "oxc-resolver": "^11.19.1",
     "oxlint": "^1.60.0"
   },
   "devDependencies": {
@@ -85,6 +87,7 @@
     "oxc-transform": "^0.125.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-refresh": "^0.18.0",
     "typescript": "^5.0.0"
   },
   "engines": {
