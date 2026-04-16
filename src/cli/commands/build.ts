@@ -366,9 +366,13 @@ export async function build() {
           clientDir: `${dist}/client`,
           serverFile: `${dist}/server.js`,
         });
-      } catch (err) {
+      } catch (err: any) {
         console.error(red(`\n✗ Provider "${provider.name}" failed:`));
-        console.error(dim(`  ${err}`));
+        if (err.message) {
+          console.error(dim(`  ${err.message}`));
+        } else {
+          console.error(dim(`  ${err}`));
+        }
       }
     }
   }
