@@ -51,9 +51,10 @@ export async function createManicServer(options: {
       return new Response("Missing file", { status: 400 });
     }
 
-    const serveHtml = () => typeof htmlHandler === "function" 
-      ? new Response(htmlHandler(), { headers: { "Content-Type": "text/html" } }) 
-      : new Response(htmlHandler, { headers: { "Content-Type": "text/html" } });
+    const serveHtml = () => {
+      const html = typeof htmlHandler === "function" ? htmlHandler() : htmlHandler;
+      return new Response(String(html), { headers: { "Content-Type": "text/html" } });
+    };
 
     if (prod) {
       // In production, try to serve from the build output first
@@ -112,16 +113,18 @@ export async function createManicServer(options: {
     }
 
     if (pathname.startsWith("/assets/")) {
-       const assetFile = Bun.file(pathname.substring(1));
+       const assetPath = pathname.substring(1); // Remove leading slash
+       const assetFile = Bun.file(assetPath);
        if (await assetFile.exists()) return new Response(assetFile);
     }
 
     return serveHtml();
   };
 
-  const htmlResponse = typeof htmlHandler === "function" 
-    ? () => new Response(htmlHandler() as string, { headers: { "Content-Type": "text/html" } }) 
-    : new Response(htmlHandler as string, { headers: { "Content-Type": "text/html" } });
+  const htmlResponse = () => {
+    const html = typeof htmlHandler === "function" ? htmlHandler() : htmlHandler;
+    return new Response(String(html), { headers: { "Content-Type": "text/html" } });
+  };
 
   const bunRoutes: Record<string, any> = {
     "/": htmlResponse,
@@ -177,7 +180,10 @@ export async function createManicServer(options: {
     apiApp.use(swagger({ path: config.swagger?.path ?? "/docs", documentation: { info: { title: config.app?.name || "Manic API", version: "1.0.0" } } }));
   }
 
-  apiApp.use(staticPlugin({ assets: "assets", prefix: "/assets" }));
+  // In production, serve assets from the built client folder
+  const assetsPath = prod ? `${config.build?.outdir ?? ".manic"}/client` : "assets";
+  apiApp.use(staticPlugin({ assets: assetsPath, prefix: "/assets" }));
+
   if (prod) apiApp.use(staticPlugin({ assets: `${config.build?.outdir ?? ".manic"}/client`, prefix: "/.manic" }));
 
   const docsPath = config.swagger === false ? null : (config.swagger?.path ?? "/docs");

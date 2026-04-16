@@ -222,7 +222,7 @@ export async function build() {
       
       process.stdout.write(`\r${dim(green("● Bundling API routes... done"))}       \n`);
       
-      process.stdout.write(dim("��� Minifying API with oxc-minify..."));
+      process.stdout.write(dim("● Minifying API with oxc-minify..."));
       await minifyDir(`${dist}/api`);
       process.stdout.write(`\r${dim(green("● Minifying API with oxc-minify... done"))}\n`);
     }
