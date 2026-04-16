@@ -11,8 +11,13 @@ export {
   defineConfig,
   loadConfig,
   type ManicConfig,
-  type SwaggerConfig,
+  type ManicPlugin,
+  type ManicPluginContext,
+  type ManicServerPluginContext,
+  type ManicBuildPluginContext,
+  type PageRoute,
+  type ApiRoute,
 } from "./src/config";
 export { ThemeProvider, useTheme, ThemeToggle } from "./src/theme";
 export { ViewTransitions } from "./src/transitions";
-export { createEdenClient } from "./src/config/client";
+export { createClient } from "./src/config/client";

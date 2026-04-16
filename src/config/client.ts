@@ -1,12 +1,10 @@
-import { edenTreaty } from "@elysiajs/eden";
-import { type App } from "./index"; // Points to the user-space ~manic.ts where app is exported
+import { hc } from "hono/client";
 
 /**
- * Type-safe Eden client setup helper for Manic
+ * Type-safe Hono RPC client setup helper for Manic
  */
-export function createEdenClient<T = any>(
+export function createClient<T>(
   baseUrl: string = typeof window !== "undefined" ? window.location.origin : "http://localhost:6070"
 ) {
-  // Use generic so it can be typed with the user's generated API app type
-  return edenTreaty<T>(baseUrl);
+  return hc<T>(baseUrl);
 }

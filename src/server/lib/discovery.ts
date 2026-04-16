@@ -43,23 +43,11 @@ export async function discoverRoutes(
 export async function discoverFavicon(
   assetsDir: string = "assets"
 ): Promise<string | null> {
-  const priorities = [
-    "favicon.svg",
-    "favicon.png",
-    "favicon.ico",
-    "icon.svg",
-    "icon.png",
-    "icon.ico",
-  ];
-
-  for (const filename of priorities) {
-    const file = Bun.file(`${assetsDir}/${filename}`);
-    if (await file.exists()) {
-      return `/assets/${filename}`;
-    }
-  }
-
-  return null;
+  const priorities = ["favicon.svg", "favicon.png", "favicon.ico", "icon.svg", "icon.png", "icon.ico"];
+  // Check all in parallel, pick first hit in priority order
+  const results = await Promise.all(priorities.map(f => Bun.file(`${assetsDir}/${f}`).exists()));
+  const idx = results.indexOf(true);
+  return idx !== -1 ? `/assets/${priorities[idx]}` : null;
 }
 
 export interface ErrorPages {
@@ -169,7 +157,7 @@ export async function writeRoutesManifest(
 
 export async function watchRoutes(
   routesDir: string,
-  onChange: (filename: string, duration: number) => void
+  onChange: (filename?: string, duration?: number) => void
 ): Promise<void> {
   const watcher = watch(routesDir, { recursive: true });
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;

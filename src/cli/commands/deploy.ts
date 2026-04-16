@@ -74,8 +74,6 @@ export async function deploy() {
         };
         await Bun.write("vercel.json", JSON.stringify(vercelConfig, null, 2));
       } else if (provider.name === "netlify") {
-        const docsPath =
-          config.swagger !== false ? config.swagger?.path ?? "/docs" : null;
         const netlifyToml = `[build]
   command = "bun run build"
   publish = "dist"
@@ -90,22 +88,7 @@ export async function deploy() {
   to = "/.netlify/functions/api"
   status = 200
 
-${
-  docsPath
-    ? `# Docs routes -> serverless function
-[[redirects]]
-  from = "${docsPath}"
-  to = "/.netlify/functions/api"
-  status = 200
-
-[[redirects]]
-  from = "${docsPath}/*"
-  to = "/.netlify/functions/api"
-  status = 200
-
-`
-    : ""
-}# SPA fallback
+# SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"

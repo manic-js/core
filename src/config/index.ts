@@ -1,15 +1,3 @@
-export interface SwaggerConfig {
-  /** URL path to serve docs at @default "/docs" */
-  path?: string;
-  documentation?: {
-    info?: {
-      title?: string;
-      description?: string;
-      version?: string;
-    };
-  };
-}
-
 /** Deployment provider interface (Vercel, Cloudflare, Netlify, etc.) */
 export interface ManicProvider {
   name: string;
@@ -37,13 +25,53 @@ export interface SitemapConfig {
   exclude?: string[];
 }
 
+/** Route info for page routes */
+export interface PageRoute {
+  path: string;
+  filePath: string;
+  dynamic: boolean;
+}
+
+/** Route info for API routes */
+export interface ApiRoute {
+  mountPath: string;
+  filePath: string;
+}
+
+/** Context passed to plugins */
+export interface ManicPluginContext {
+  config: ManicConfig;
+  pageRoutes: PageRoute[];
+  apiRoutes: ApiRoute[];
+  prod: boolean;
+  cwd: string;
+  dist: string;
+}
+
+/** Extended context for server plugins */
+export interface ManicServerPluginContext extends ManicPluginContext {
+  addRoute(path: string, handler: (req: Request) => Response | Promise<Response>): void;
+}
+
+/** Extended context for build plugins */
+export interface ManicBuildPluginContext extends ManicPluginContext {
+  emitClientFile(relativePath: string, content: string | Uint8Array): Promise<void>;
+}
+
+/** Plugin interface for extending Manic */
+export interface ManicPlugin {
+  name: string;
+  configureServer?(ctx: ManicServerPluginContext): void | Promise<void>;
+  build?(ctx: ManicBuildPluginContext): void | Promise<void>;
+}
+
 /** Main configuration object for a Manic application */
 export interface ManicConfig {
-  /** Server mode — "fullstack" includes Elysia API support, "frontend" is pure SPA with no Elysia @default "fullstack" */
+  /** Server mode — "fullstack" includes Hono API support, "frontend" is pure SPA @default "fullstack" */
   mode?: "fullstack" | "frontend";
 
   app?: {
-    /** Application name, shown in browser title and swagger docs */
+    /** Application name, shown in browser title */
     name?: string;
   };
 
@@ -74,9 +102,6 @@ export interface ManicConfig {
     outdir?: string;
   };
 
-  /** Swagger docs config, or false to disable */
-  swagger?: SwaggerConfig | false;
-
   /** Sitemap generation config, or false to disable */
   sitemap?: SitemapConfig | false;
 
@@ -92,6 +117,9 @@ export interface ManicConfig {
 
   /** Deployment providers (Vercel, Cloudflare, Netlify) */
   providers?: ManicProvider[];
+
+  /** Plugins for extending Manic */
+  plugins?: ManicPlugin[];
 }
 
 const DEFAULT_CONFIG: ManicConfig = {
@@ -108,16 +136,6 @@ const DEFAULT_CONFIG: ManicConfig = {
     sourcemap: "inline",
     splitting: true,
     outdir: ".manic",
-  },
-  swagger: {
-    path: "/docs",
-    documentation: {
-      info: {
-        title: "API",
-        description: "API documentation",
-        version: "1.0.0",
-      },
-    },
   },
   oxc: {
     target: "esnext",
@@ -156,13 +174,10 @@ export async function loadConfig(
           server: { ...DEFAULT_CONFIG.server, ...userConfig.server },
           router: { ...DEFAULT_CONFIG.router, ...userConfig.router },
           build: { ...DEFAULT_CONFIG.build, ...userConfig.build },
-          swagger:
-            userConfig.swagger === false
-              ? false
-              : { ...DEFAULT_CONFIG.swagger, ...userConfig.swagger },
           sitemap: userConfig.sitemap === false ? false : userConfig.sitemap,
           oxc: { ...DEFAULT_CONFIG.oxc, ...userConfig.oxc },
           providers: userConfig.providers,
+          plugins: userConfig.plugins,
         };
 
         return cachedConfig;

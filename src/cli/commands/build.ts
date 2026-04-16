@@ -3,7 +3,7 @@ import { $ } from "bun";
 import { statSync, readdirSync, existsSync } from "fs";
 import bunPluginTailwind from "bun-plugin-tailwind";
 import { loadConfig } from "../../config";
-import { discoverRoutes, generateSitemap, writeRoutesManifest } from "../../server/lib/discovery";
+import { discoverRoutes, writeRoutesManifest } from "../../server/lib/discovery";
 import { oxcPlugin } from "../plugins/oxc";
 import { minifySync } from "oxc-minify";
 import { ResolverFactory } from "oxc-resolver";
@@ -185,11 +185,29 @@ export async function build() {
 
   await Bun.write(`${dist}/client/index.html`, html);
 
-  if (config.sitemap && config.sitemap !== false) {
-    const routes = await discoverRoutes();
-    const sitemapXml = generateSitemap(routes, config.sitemap);
-    await Bun.write(`${dist}/client/sitemap.xml`, sitemapXml);
-    process.stdout.write(dim(green("● Generated sitemap.xml\n")));
+  // Run build plugins
+  if (config.plugins?.length) {
+    const pageRoutes = (await discoverRoutes()).map(r => ({
+      path: r.path,
+      filePath: r.filePath,
+      dynamic: r.path.includes(":"),
+    }));
+    for (const plugin of config.plugins) {
+      if (plugin.build) {
+        await plugin.build({
+          config,
+          pageRoutes,
+          apiRoutes: [],
+          prod: true,
+          cwd: process.cwd(),
+          dist,
+          async emitClientFile(relativePath: string, content: string | Uint8Array) {
+            await Bun.write(`${dist}/client/${relativePath}`, content);
+          },
+        });
+        process.stdout.write(dim(green(`● Plugin "${plugin.name}" completed\n`)));
+      }
+    }
   }
 
   const apiDir = "app/api";

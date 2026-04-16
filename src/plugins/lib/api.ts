@@ -1,63 +1,57 @@
-import { Elysia } from "elysia";
-import { existsSync, join } from "fs";
-import { isAbsolute } from "path";
+import { Hono } from "hono";
+import { existsSync } from "fs";
+import { join, isAbsolute } from "path";
 
 export const apiLoaderPlugin = async (apiDir: string = "app/api") => {
-  let app = new Elysia({ name: "manic.api" });
+  const app = new Hono().basePath("/api");
   const routes: string[] = [];
-  const registeredPaths = new Set<string>();
   const apiRoot = isAbsolute(apiDir) ? apiDir : join(process.cwd(), apiDir);
 
-  if (!existsSync(apiRoot)) {
-    return { app, routes };
-  }
+  if (!existsSync(apiRoot)) return { app, routes, openApiSpec: buildSpec(app) };
 
-  const explorer = new Bun.Glob("**/*.{ts,tsx}");
+  const glob = new Bun.Glob("**/*.{ts,tsx,js}");
 
-  for await (const file of explorer.scan({ cwd: apiRoot })) {
-    const fullPath = join(apiRoot, file);
-
+  for await (const file of glob.scan({ cwd: apiRoot })) {
     try {
-      const mod = await import(fullPath);
+      const mod = await import(join(apiRoot, file));
+      if (!mod.default) continue;
 
-      if (mod.default) {
-        let routePath = file
-          .replace(/\.tsx?$/, "")
-          .replace(/\/index$/, "")
-          .replace(/^index$/, "");
+      const routePath = ("/" + file
+        .replace(/\.(?:tsx?|js)$/, "")
+        .replace(/\/index$/, "")
+        .replace(/^index$/, ""))
+        .replace(/\/+/g, "/")
+        .replace(/\[([^\]]+)\]/g, ":$1");
 
-        if (routePath === "") {
-           // Handle root api index
-           app = app.all("/api", (ctx) => mod.default(ctx));
-           routes.push("/api");
-           registeredPaths.add("/api");
-           continue;
-        }
+      routes.push(`/api${routePath === "/" ? "" : routePath}`);
 
-        const mountPath = `/api/${routePath}`.replace(/\/$/, "") || "/api";
-        
-        if (registeredPaths.has(mountPath)) continue;
-        registeredPaths.add(mountPath);
-        
-        routes.push(matchPathToPattern(mountPath));
-
-        if (typeof mod.default === "function" && !(mod.default as any).fetch) {
-           app = app.get(mountPath, (ctx) => mod.default(ctx))
-                    .post(mountPath, (ctx) => mod.default(ctx))
-                    .put(mountPath, (ctx) => mod.default(ctx))
-                    .delete(mountPath, (ctx) => mod.default(ctx));
-        } else if (mod.default) {
-           app = app.group(mountPath, (g) => g.use(mod.default));
-        }
+      const h = mod.default;
+      // Hono instance has .fetch; plain functions don't
+      if (typeof h.fetch === "function") {
+        app.route(routePath, h);
+      } else if (typeof h === "function") {
+        app.all(routePath, (c) => h(c));
       }
     } catch (err) {
       console.error(`[Manic API] Failed to load ${file}:`, err);
     }
   }
 
-  return { app, routes };
+  return { app, routes, openApiSpec: buildSpec(app) };
 };
 
-function matchPathToPattern(path: string) {
-    return path.replace(/\[([^\]]+)\]/g, ":$1");
+function buildSpec(app: any) {
+  const paths: Record<string, any> = {};
+  for (const { path, method } of (app.routes as { path: string; method: string }[])) {
+    if (method === "ALL") continue;
+    // Convert Hono :param syntax to OpenAPI {param}
+    const oaPath = path.replace(/:([^/]+)/g, "{$1}");
+    if (!paths[oaPath]) paths[oaPath] = {};
+    paths[oaPath][method.toLowerCase()] = { responses: { 200: { description: "OK" } } };
+  }
+  return {
+    openapi: "3.0.0",
+    info: { title: "Manic API", version: "1.0.0" },
+    paths,
+  };
 }
