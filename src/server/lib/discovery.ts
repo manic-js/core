@@ -158,11 +158,12 @@ async function touchManicEntry(
 }
 
 export async function writeRoutesManifest(
-  outPath: string = "app/~routes.generated.ts"
+  outPath: string = "app/~routes.generated.ts",
+  touch: boolean = false
 ): Promise<string> {
   const content = await generateRoutesManifest();
   await Bun.write(outPath, content);
-  await touchManicEntry(outPath);
+  if (touch) await touchManicEntry(outPath);
   return content;
 }
 
@@ -180,19 +181,23 @@ export async function watchRoutes(
       !event.filename.startsWith("~")
     ) {
       const filename = event.filename;
+      const isStructureChange = event.eventType === "rename";
 
       if (debounceTimer) clearTimeout(debounceTimer);
 
       debounceTimer = setTimeout(async () => {
-        const startTime = performance.now();
-        await writeRoutesManifest();
-        const duration = Math.round(performance.now() - startTime);
-        const routeName = filename
-          .replace(/\.tsx?$/, "")
-          .replace(/\/index$/, "")
-          .replace(/^index$/, "/");
-
-        onChange(routeName || "/", duration);
+        if (isStructureChange) {
+          const startTime = performance.now();
+          // Only trigger server restart (touch: true) if a file was added/deleted
+          await writeRoutesManifest("app/~routes.generated.ts", true);
+          const duration = Math.round(performance.now() - startTime);
+          const routeName = filename
+            .replace(/\.tsx?$/, "")
+            .replace(/\/index$/, "")
+            .replace(/^index$/, "/");
+  
+          onChange(routeName || "/", duration);
+        }
       }, 50);
     }
   }

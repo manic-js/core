@@ -191,7 +191,7 @@ export function Router({
   );
   const [LoadedComponent, setLoadedComponent] = useState<ComponentType | null>(null);
   const [routeParams, setRouteParams] = useState<Record<string, string>>({});
-  const [hasError, setHasError] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<Error | null>(null);
   const isNavigating = useRef(false);
   const abortController = useRef<AbortController | null>(null);
 
@@ -230,7 +230,7 @@ export function Router({
       }
       setCurrentPath(path);
       setLoadedComponent(null);
-      setHasError(false);
+      setErrorDetails(null);
       return;
     }
 
@@ -256,7 +256,7 @@ export function Router({
           setCurrentPath(path);
           setLoadedComponent(() => Cmp);
           setRouteParams(match.params);
-          setHasError(false);
+          setErrorDetails(null);
           
           if (!isPopState && document.body) {
              // ensure we scroll to top on new navigation, leaving popstate intact
@@ -266,16 +266,23 @@ export function Router({
           }
         };
 
-        if (viewTransitionsEnabled && document.startViewTransition) {
-          document.startViewTransition(() => {
-            flushSync(updateState);
-          });
+        const shouldAnimate = viewTransitionsEnabled && document.startViewTransition && !isPopState && !replace;
+
+        if (shouldAnimate) {
+          try {
+            document.startViewTransition!(() => {
+              flushSync(updateState);
+            });
+          } catch (e) {
+            // Fallback to normal update if transition fails
+            updateState();
+          }
         } else {
           updateState();
         }
       } catch (err) {
         if (signal.aborted) return;
-        setHasError(true);
+        setErrorDetails(err instanceof Error ? err : new Error(String(err)));
       } finally {
         if (!signal.aborted) isNavigating.current = false;
       }
@@ -309,11 +316,11 @@ export function Router({
     };
   }, [registry]);
 
-  if (hasError) {
+  if (errorDetails) {
     return createElement(
       RouterContext.Provider,
       { value: { path: currentPath, navigate, params: {} } },
-      createElement(ErrorPage, null)
+      createElement(ErrorPage as any, { error: errorDetails })
     );
   }
 
@@ -336,8 +343,8 @@ export function Router({
     createElement(
       ErrorBoundary,
       {
-        fallback: createElement(ErrorPage, null),
-        onError: () => setHasError(true),
+        fallback: createElement(ErrorPage as any, { error: errorDetails }),
+        onError: (err) => setErrorDetails(err),
       },
       createElement(LoadedComponent, null)
     )

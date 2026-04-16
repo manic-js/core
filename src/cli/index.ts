@@ -4,12 +4,16 @@ import { dev } from "./commands/dev";
 import { build } from "./commands/build";
 import { start } from "./commands/start";
 import { deploy } from "./commands/deploy";
+import { lint } from "./commands/lint";
+import { fmt } from "./commands/fmt";
 
 const commands = {
   dev,
   build,
   start,
   deploy,
+  lint,
+  fmt,
 } as const;
 
 type Command = keyof typeof commands;
@@ -27,6 +31,8 @@ ${bold("Commands:")}
   ${cyan("build")}     Build for production
   ${cyan("start")}     Start production server
   ${cyan("deploy")}    Deploy to configured provider
+  ${cyan("lint")}      Run oxlint to check code quality
+  ${cyan("fmt")}       Format code using oxfmt
 
 ${bold("Options:")}
   -h, --help        Show this help message
@@ -42,6 +48,8 @@ ${bold("Examples:")}
   ${blue("manic")} start
   ${blue("manic")} deploy
   ${blue("manic")} deploy --run
+  ${blue("manic")} lint
+  ${blue("manic")} fmt
 `;
 
 async function main(): Promise<void> {
@@ -62,6 +70,17 @@ async function main(): Promise<void> {
     console.error(red(`Unknown command: ${command}`));
     console.log(helpText);
     process.exit(1);
+  }
+
+  if (command === "lint" || command === "fmt") {
+    try {
+      await commands[command]();
+    } catch (error) {
+      console.error(red(`Error running ${command}:`));
+      console.error(error);
+      process.exit(1);
+    }
+    return;
   }
 
   const portIndex =
