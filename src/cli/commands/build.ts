@@ -137,7 +137,7 @@ export async function build() {
   const jsFile = jsEntry?.path.split('/').pop() ?? 'main.js';
   const cssFile = cssOutput?.path.split('/').pop();
 
-  if (await Bun.file('assets').exists()) {
+  if (existsSync('assets')) {
     await $`cp -r assets ${dist}/client/assets`;
   }
 
