@@ -10,11 +10,13 @@ export const apiLoaderPlugin = async (apiDir: string = 'app/api') => {
   if (!existsSync(apiRoot)) return { app, routes, openApiSpec: buildSpec(app) };
 
   const glob = new Bun.Glob('**/*.{ts,tsx,js}');
+  const files: string[] = [];
+  for await (const file of glob.scan({ cwd: apiRoot })) files.push(file);
 
-  for await (const file of glob.scan({ cwd: apiRoot })) {
+  await Promise.all(files.map(async (file) => {
     try {
       const mod = await import(join(apiRoot, file));
-      if (!mod.default) continue;
+      if (!mod.default) return;
 
       const routePath = (
         '/' +
@@ -38,7 +40,7 @@ export const apiLoaderPlugin = async (apiDir: string = 'app/api') => {
     } catch (err) {
       console.error(`[Manic API] Failed to load ${file}:`, err);
     }
-  }
+  }));
 
   return { app, routes, openApiSpec: buildSpec(app) };
 };

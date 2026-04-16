@@ -10,8 +10,10 @@ export async function createManicServer(options: {
   envKeys?: string[];
   startTime?: number;
 }) {
-  const config = options.config || (await loadConfig());
-  const routes = options.routes || (await discoverRoutes());
+  const [config, routes] = await Promise.all([
+    options.config ? Promise.resolve(options.config) : loadConfig(),
+    options.routes ? Promise.resolve(options.routes) : discoverRoutes(),
+  ]);
   const envKeys = options.envKeys || [];
   const startTime = options.startTime || performance.now();
   const prod = process.env.NODE_ENV === 'production';
