@@ -88,8 +88,22 @@ export async function createManicServer(options: {
     }
 
     if (pathname.startsWith('/assets/')) {
-      const assetFile = Bun.file(pathname.substring(1));
-      if (await assetFile.exists()) return new Response(assetFile);
+      const assetPath = prod
+        ? join(process.cwd(), dist, 'client', pathname.substring(1))
+        : pathname.substring(1);
+      const assetFile = Bun.file(assetPath);
+      if (await assetFile.exists())
+        return new Response(assetFile, {
+          headers: prod
+            ? {
+                'Content-Type': assetFile.type,
+                'Cache-Control': 'public, max-age=3600, must-revalidate',
+              }
+            : {
+                'Content-Type': assetFile.type,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+              },
+        });
     }
 
     // In dev, check if the requested file exists on disk (e.g., main.tsx, .js, .css)
@@ -99,7 +113,10 @@ export async function createManicServer(options: {
       const file = Bun.file(filePath);
       if (await file.exists()) {
         return new Response(file, {
-          headers: { 'Content-Type': file.type },
+          headers: {
+            'Content-Type': file.type,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          },
         });
       }
 

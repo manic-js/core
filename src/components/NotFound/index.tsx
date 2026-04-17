@@ -8,7 +8,7 @@ export function NotFound() {
         {/* LOGO */}
         <img
           src="/assets/not-found.svg"
-          className="max-w-48 dark:invert-0 invert"
+          className="max-w-96"
           alt="Search icon"
         />
         <div className="flex items-center justify-center flex-row gap-6">
