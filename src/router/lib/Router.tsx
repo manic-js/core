@@ -288,11 +288,11 @@ export function Router({
 
         if (shouldAnimate) {
           try {
-            document.startViewTransition!(() => {
+            const transition = document.startViewTransition!(() => {
               flushSync(updateState);
             });
+            transition.finished.catch(() => {});
           } catch (e) {
-            // Fallback to normal update if transition fails
             updateState();
           }
         } else {

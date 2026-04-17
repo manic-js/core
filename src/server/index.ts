@@ -27,8 +27,11 @@ export async function createManicServer(options: {
 
   const serveHtml = async (): Promise<Response> => {
     if (isHtmlBundle) {
-      // Fallback for dynamic routes in prod — serve the built index.html
-      const f = Bun.file(join(process.cwd(), dist, 'client', 'index.html'));
+      // In dev, serve from app/index.html; in prod, serve from .manic/client/index.html
+      const htmlPath = prod
+        ? join(process.cwd(), dist, 'client', 'index.html')
+        : 'app/index.html';
+      const f = Bun.file(htmlPath);
       return new Response(f, {
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
       });
@@ -39,6 +42,11 @@ export async function createManicServer(options: {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
     });
   };
+
+  // Hidden internal route so the catch-all can fetch the processed HTMLBundle
+  // for unknown SPA routes (Bun only processes HTMLBundle on static route values)
+  const htmlBundleNonce =
+    isHtmlBundle && !prod ? `/__manic_html_${crypto.randomUUID()}` : null;
 
   const handleDynamicRequest = async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
@@ -84,17 +92,34 @@ export async function createManicServer(options: {
       if (await assetFile.exists()) return new Response(assetFile);
     }
 
+    // In dev, check if the requested file exists on disk (e.g., main.tsx, .js, .css)
+    // If it exists, serve it directly; otherwise fall through to SPA handler
+    if (!prod) {
+      const filePath = pathname === '/' ? 'app/index.html' : pathname;
+      const file = Bun.file(filePath);
+      if (await file.exists()) {
+        return new Response(file, {
+          headers: { 'Content-Type': file.type },
+        });
+      }
+
+      // In dev with HTMLBundle, internally fetch the hidden nonce route so Bun
+      // processes tailwindcss, .tsx imports, and HMR correctly for unknown routes.
+      // The client-side router will handle showing the 404 page.
+      if (htmlBundleNonce) {
+        return fetch(new Request(`${url.origin}${htmlBundleNonce}`));
+      }
+    }
+
     return serveHtml();
   };
 
-  // In dev with HTMLBundle, Bun handles all JS/CSS serving via static
-  // Page routes just need to return the HTML shell (Bun's static handles /_bun/* automatically)
-  const pageHandler =
-    isHtmlBundle && !prod
-      ? options.html // Bun serves this natively via static
-      : () => serveHtml();
+  // In dev with HTMLBundle, use the HTMLBundle directly for routes
+  // This allows Bun to handle HMR and asset bundling correctly
+  const pageHandler = isHtmlBundle && !prod ? options.html : () => serveHtml();
 
   const bunRoutes: Record<string, any> = { '/': pageHandler };
+  if (htmlBundleNonce) bunRoutes[htmlBundleNonce] = options.html;
   for (const route of routes) {
     if (route.path !== '/') bunRoutes[route.path] = pageHandler;
   }
@@ -111,7 +136,7 @@ export async function createManicServer(options: {
     const server = Bun.serve({
       port,
       hostname,
-      static: isHtmlBundle && !prod ? { '/': options.html } : undefined,
+      static: undefined,
       routes: { ...bunRoutes, '/*': handleDynamicRequest },
       development:
         !prod && config.server?.hmr !== false ? { hmr: true } : undefined,
@@ -161,7 +186,7 @@ export async function createManicServer(options: {
   const server = Bun.serve({
     port,
     hostname,
-    static: isHtmlBundle && !prod ? { '/': options.html } : undefined,
+    static: undefined,
     routes: { ...bunRoutes, '/*': handleDynamicRequest },
     development:
       !prod && config.server?.hmr !== false ? { hmr: true } : undefined,
