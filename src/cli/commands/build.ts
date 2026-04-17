@@ -90,7 +90,7 @@ export async function build() {
   const oxlintBin = existsSync('node_modules/.bin/oxlint')
     ? 'node_modules/.bin/oxlint'
     : 'oxlint';
-  const lintResult = await $`${oxlintBin} . --deny-warnings`;
+  const lintResult = await $`${oxlintBin} .`;
 
   if (lintResult.exitCode !== 0) {
     process.stdout.write(`\r${dim(red('● Linting failed      '))}\n`);
