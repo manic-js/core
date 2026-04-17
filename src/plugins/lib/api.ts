@@ -7,7 +7,7 @@ export const apiLoaderPlugin = async (apiDir: string = 'app/api') => {
   const routes: string[] = [];
   const apiRoot = isAbsolute(apiDir) ? apiDir : join(process.cwd(), apiDir);
 
-  if (!existsSync(apiRoot)) return { app, routes, openApiSpec: buildSpec(app) };
+  if (!existsSync(apiRoot)) return { app, routes, openApiSpec: buildSpec(app, routes) };
 
   const glob = new Bun.Glob('**/*.{ts,tsx,js}');
   const files: string[] = [];
@@ -42,20 +42,17 @@ export const apiLoaderPlugin = async (apiDir: string = 'app/api') => {
     }
   }));
 
-  return { app, routes, openApiSpec: buildSpec(app) };
+  return { app, routes, openApiSpec: buildSpec(app, routes) };
 };
 
-function buildSpec(app: any) {
+function buildSpec(app: any, registeredRoutes: string[]) {
   const paths: Record<string, any> = {};
-  for (const { path, method } of app.routes as {
-    path: string;
-    method: string;
-  }[]) {
-    if (method === 'ALL') continue;
-    // Convert Hono :param syntax to OpenAPI {param}
-    const oaPath = path.replace(/:([^/]+)/g, '{$1}');
+  // Use the registered routes array which already includes the /api prefix,
+  // rather than app.routes which stores paths relative to the basePath.
+  for (const route of registeredRoutes) {
+    const oaPath = route.replace(/:([^/]+)/g, '{$1}');
     if (!paths[oaPath]) paths[oaPath] = {};
-    paths[oaPath][method.toLowerCase()] = {
+    paths[oaPath]['get'] = {
       responses: { 200: { description: 'OK' } },
     };
   }
