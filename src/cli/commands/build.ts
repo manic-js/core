@@ -346,6 +346,7 @@ export async function build() {
   console.log(dim(`Built in ${formatTime(buildTime)}`));
   console.log(dim(`Output: ${dist}/`));
 
+  // Generate provider files BEFORE server build (to avoid read-only filesystem issues)
   if (config.providers?.length) {
     console.log('');
     for (const provider of config.providers) {
