@@ -160,11 +160,16 @@ export async function createManicServer(options: {
       }
 
       if (htmlBundleNonce) {
-        // For markdown/agent requests, serve processed HTML via serveHtml
         if (prefersMarkdown(req) || new URL(req.url).searchParams.get('mode') === 'agent') {
           return serveHtml(req);
         }
-        return fetch(new Request(`${url.origin}${htmlBundleNonce}`));
+        const res = await fetch(new Request(`${url.origin}${htmlBundleNonce}`));
+        if (linkHeaders.length) {
+          const h = new Headers(res.headers);
+          h.set('Link', linkHeaders.join(', '));
+          return new Response(res.body, { status: res.status, headers: h });
+        }
+        return res;
       }
     }
 
