@@ -112,23 +112,6 @@ export async function build() {
     process.exit(1);
   }
 
-  // Temporarily inject @source for manicjs built-in components so Tailwind
-  // scans NotFound, ServerError, etc. without user configuration.
-  const globalCssPath = 'app/global.css';
-  let originalCss: string | null = null;
-  const globalCssFile = Bun.file(globalCssPath);
-  if (await globalCssFile.exists()) {
-    originalCss = await globalCssFile.text();
-    if (!originalCss.includes('manicjs')) {
-      // Resolve manicjs src path — works for both workspace symlink and installed package
-      const manicPkgPath = import.meta.resolve('manicjs/package.json').replace('file://', '');
-      const manicSrc = manicPkgPath.replace('/package.json', '/src');
-      await Bun.write(globalCssPath, `@source '${manicSrc}/**/*.{tsx,ts}';\n` + originalCss);
-    } else {
-      originalCss = null;
-    }
-  }
-
   const clientBuild = await Bun.build({
     entrypoints: [mainEntry.path],
     outdir: `${dist}/client`,
@@ -418,7 +401,4 @@ export async function build() {
   }
 
   console.log(dim(`Start: ${green('bun start')}\n`));
-
-  // Restore global.css if we patched it
-  if (originalCss !== null) await Bun.write(globalCssPath, originalCss);
 }
