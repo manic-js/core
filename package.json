@@ -1,6 +1,6 @@
 {
   "name": "manicjs",
-  "version": "0.8.2",
+  "version": "0.12.0",
   "description": "Stupidly fast, Crazy light React framework powered by Bun and Hono",
   "keywords": [
     "bun",
