@@ -112,18 +112,21 @@ export async function build() {
     process.exit(1);
   }
 
-  // Inject @source for manicjs built-in components into a temp CSS wrapper
-  // so Tailwind scans NotFound, ServerError, etc. without user configuration.
+  // Temporarily inject @source for manicjs built-in components so Tailwind
+  // scans NotFound, ServerError, etc. without user configuration.
   const globalCssPath = 'app/global.css';
-  const tempCssPath = 'app/~global.css';
-  if (await Bun.file(globalCssPath).exists()) {
-    const manicPkg = resolver.sync(process.cwd(), 'manicjs/package.json');
-    if (manicPkg.path) {
-      const manicSrc = manicPkg.path.replace('/package.json', '/src');
-      await Bun.write(
-        tempCssPath,
-        `@source '${manicSrc}/**/*.tsx';\n@source '${manicSrc}/**/*.ts';\n@import './global.css';\n`
-      );
+  let originalCss: string | null = null;
+  const globalCssFile = Bun.file(globalCssPath);
+  if (await globalCssFile.exists()) {
+    originalCss = await globalCssFile.text();
+    if (!originalCss.includes('manicjs')) {
+      const manicPkg = resolver.sync(process.cwd(), 'manicjs/package.json');
+      if (manicPkg.path) {
+        const manicSrc = manicPkg.path.replace('/package.json', '/src');
+        await Bun.write(globalCssPath, `@source '${manicSrc}/**/*.{tsx,ts}';\n` + originalCss);
+      }
+    } else {
+      originalCss = null; // already has it, no need to restore
     }
   }
 
@@ -416,4 +419,7 @@ export async function build() {
   }
 
   console.log(dim(`Start: ${green('bun start')}\n`));
+
+  // Restore global.css if we patched it
+  if (originalCss !== null) await Bun.write(globalCssPath, originalCss);
 }
