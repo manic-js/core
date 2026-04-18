@@ -90,11 +90,11 @@ export async function build() {
   const oxlintBin = existsSync('node_modules/.bin/oxlint')
     ? 'node_modules/.bin/oxlint'
     : 'oxlint';
-  const lintResult = await $`${oxlintBin} .`;
+  const lintResult = await $`${oxlintBin} .`.nothrow().quiet();
 
   if (lintResult.exitCode !== 0) {
     process.stdout.write(`\r${dim(red('● Linting failed      '))}\n`);
-    console.log(lintResult.stderr.toString());
+    console.log(lintResult.stdout.toString());
     process.exit(1);
   }
   process.stdout.write(`\r${dim(green('● Linting passed      '))}\n`);
@@ -120,6 +120,9 @@ export async function build() {
       entry: '[name]-[hash].[ext]',
       chunk: 'chunks/[name]-[hash].[ext]',
       asset: 'assets/[name]-[hash].[ext]',
+    },
+    define: {
+      'process.env.NODE_ENV': JSON.stringify('production'),
     },
     plugins: [oxcPlugin(), bunPluginTailwind],
   });
@@ -193,6 +196,7 @@ export async function build() {
       filePath: r.filePath,
       dynamic: r.path.includes(':'),
     }));
+    const htmlInjections: string[] = [];
     for (const plugin of config.plugins) {
       if (plugin.build) {
         await plugin.build({
@@ -213,11 +217,18 @@ export async function build() {
             }
             await Bun.write(outputPath, content);
           },
+          injectHtml(tags: string) {
+            htmlInjections.push(tags);
+          },
         });
         process.stdout.write(
           dim(green(`● Plugin "${plugin.name}" completed\n`))
         );
       }
+    }
+    if (htmlInjections.length) {
+      html = html.replace('</head>', `${htmlInjections.join('\n')}\n</head>`);
+      await Bun.write(`${dist}/client/index.html`, html);
     }
   }
 
@@ -243,7 +254,9 @@ export async function build() {
           outdir: `${dist}/api`,
           target: 'bun',
           minify: false,
-          external: ['*'],
+          external: Object.keys(
+            (await import(`${process.cwd()}/package.json`)).dependencies ?? {}
+          ),
           naming: `${outName}.js`,
           plugins: [oxcPlugin()],
         });

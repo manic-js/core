@@ -20,12 +20,24 @@ export function htmlToMarkdown(html: string): string {
   let md = html;
 
   // Remove <script>, <style>, <noscript>, <svg>, <head> blocks entirely
-  md = md.replace(/<(script|style|noscript|svg|head)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+  md = md.replace(
+    /<(script|style|noscript|svg|head)\b[^>]*>[\s\S]*?<\/\1>/gi,
+    ''
+  );
 
   // Headings
-  md = md.replace(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi, (_, level, content) => {
-    return '\n' + '#'.repeat(Number(level)) + ' ' + stripTags(content).trim() + '\n';
-  });
+  md = md.replace(
+    /<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi,
+    (_, level, content) => {
+      return (
+        '\n' +
+        '#'.repeat(Number(level)) +
+        ' ' +
+        stripTags(content).trim() +
+        '\n'
+      );
+    }
+  );
 
   // Paragraphs
   md = md.replace(/<p\b[^>]*>([\s\S]*?)<\/p>/gi, (_, content) => {
@@ -37,18 +49,30 @@ export function htmlToMarkdown(html: string): string {
   md = md.replace(/<br\s*\/?>/gi, '\n');
 
   // Bold
-  md = md.replace(/<(strong|b)\b[^>]*>([\s\S]*?)<\/\1>/gi, (_, __, c) => `**${stripTags(c).trim()}**`);
+  md = md.replace(
+    /<(strong|b)\b[^>]*>([\s\S]*?)<\/\1>/gi,
+    (_, __, c) => `**${stripTags(c).trim()}**`
+  );
 
   // Italic
-  md = md.replace(/<(em|i)\b[^>]*>([\s\S]*?)<\/\1>/gi, (_, __, c) => `*${stripTags(c).trim()}*`);
+  md = md.replace(
+    /<(em|i)\b[^>]*>([\s\S]*?)<\/\1>/gi,
+    (_, __, c) => `*${stripTags(c).trim()}*`
+  );
 
   // Inline code
-  md = md.replace(/<code\b[^>]*>([\s\S]*?)<\/code>/gi, (_, c) => `\`${stripTags(c).trim()}\``);
+  md = md.replace(
+    /<code\b[^>]*>([\s\S]*?)<\/code>/gi,
+    (_, c) => `\`${stripTags(c).trim()}\``
+  );
 
   // Code blocks (pre > code)
-  md = md.replace(/<pre\b[^>]*>\s*<code\b[^>]*>([\s\S]*?)<\/code>\s*<\/pre>/gi, (_, c) => {
-    return '\n```\n' + stripTags(c).trim() + '\n```\n';
-  });
+  md = md.replace(
+    /<pre\b[^>]*>\s*<code\b[^>]*>([\s\S]*?)<\/code>\s*<\/pre>/gi,
+    (_, c) => {
+      return '\n```\n' + stripTags(c).trim() + '\n```\n';
+    }
+  );
 
   // Pre blocks
   md = md.replace(/<pre\b[^>]*>([\s\S]*?)<\/pre>/gi, (_, c) => {
@@ -57,33 +81,67 @@ export function htmlToMarkdown(html: string): string {
 
   // Blockquotes
   md = md.replace(/<blockquote\b[^>]*>([\s\S]*?)<\/blockquote>/gi, (_, c) => {
-    return '\n' + stripTags(c).trim().split('\n').map((l: string) => `> ${l}`).join('\n') + '\n';
+    return (
+      '\n' +
+      stripTags(c)
+        .trim()
+        .split('\n')
+        .map((l: string) => `> ${l}`)
+        .join('\n') +
+      '\n'
+    );
   });
 
   // Anchors
-  md = md.replace(/<a\b[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi, (_, href, text) => {
-    const label = stripTags(text).trim();
-    return label ? `[${label}](${href})` : '';
-  });
+  md = md.replace(
+    /<a\b[^>]*href=["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi,
+    (_, href, text) => {
+      const label = stripTags(text).trim();
+      return label ? `[${label}](${href})` : '';
+    }
+  );
 
   // Images
-  md = md.replace(/<img\b[^>]*src=["']([^"']*)["'][^>]*alt=["']([^"']*)["'][^>]*\/?>/gi, (_, src, alt) => `![${alt}](${src})`);
-  md = md.replace(/<img\b[^>]*alt=["']([^"']*)["'][^>]*src=["']([^"']*)["'][^>]*\/?>/gi, (_, alt, src) => `![${alt}](${src})`);
-  md = md.replace(/<img\b[^>]*src=["']([^"']*)["'][^>]*\/?>/gi, (_, src) => `![](${src})`);
+  md = md.replace(
+    /<img\b[^>]*src=["']([^"']*)["'][^>]*alt=["']([^"']*)["'][^>]*\/?>/gi,
+    (_, src, alt) => `![${alt}](${src})`
+  );
+  md = md.replace(
+    /<img\b[^>]*alt=["']([^"']*)["'][^>]*src=["']([^"']*)["'][^>]*\/?>/gi,
+    (_, alt, src) => `![${alt}](${src})`
+  );
+  md = md.replace(
+    /<img\b[^>]*src=["']([^"']*)["'][^>]*\/?>/gi,
+    (_, src) => `![](${src})`
+  );
 
   // Unordered lists
   md = md.replace(/<ul\b[^>]*>([\s\S]*?)<\/ul>/gi, (_, content) => {
-    return '\n' + content.replace(/<li\b[^>]*>([\s\S]*?)<\/li>/gi, (_: string, li: string) => {
-      return '- ' + stripTags(li).trim() + '\n';
-    }) + '\n';
+    return (
+      '\n' +
+      content.replace(
+        /<li\b[^>]*>([\s\S]*?)<\/li>/gi,
+        (_: string, li: string) => {
+          return '- ' + stripTags(li).trim() + '\n';
+        }
+      ) +
+      '\n'
+    );
   });
 
   // Ordered lists
   md = md.replace(/<ol\b[^>]*>([\s\S]*?)<\/ol>/gi, (_, content) => {
     let i = 0;
-    return '\n' + content.replace(/<li\b[^>]*>([\s\S]*?)<\/li>/gi, (_: string, li: string) => {
-      return `${++i}. ${stripTags(li).trim()}\n`;
-    }) + '\n';
+    return (
+      '\n' +
+      content.replace(
+        /<li\b[^>]*>([\s\S]*?)<\/li>/gi,
+        (_: string, li: string) => {
+          return `${++i}. ${stripTags(li).trim()}\n`;
+        }
+      ) +
+      '\n'
+    );
   });
 
   // Horizontal rules

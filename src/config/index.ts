@@ -63,6 +63,8 @@ export interface ManicServerPluginContext extends ManicPluginContext {
   ): void;
   /** Add a Link header to all HTML page responses (RFC 8288) */
   addLinkHeader(value: string): void;
+  /** Inject HTML tags (e.g. <meta>) into the <head> of every served HTML page */
+  injectHtml(tags: string): void;
 }
 
 /** Extended context for build plugins */
@@ -71,6 +73,8 @@ export interface ManicBuildPluginContext extends ManicPluginContext {
     relativePath: string,
     content: string | Uint8Array
   ): Promise<void>;
+  /** Inject HTML tags (e.g. <meta>) into the <head> of the built index.html */
+  injectHtml(tags: string): void;
 }
 
 /** Plugin interface for extending Manic */

@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { flushSync } from 'react-dom';
 import { NotFound } from '../../components/NotFound';
+import { ErrorOverlay } from '../../components/ErrorOverlay';
 import { ServerError } from '../../components/ServerError';
 import { RouterContext } from './context';
 import { RouteRegistry } from './matcher';
@@ -198,6 +199,9 @@ export function Router({
   );
   const [routeParams, setRouteParams] = useState<Record<string, string>>({});
   const [errorDetails, setErrorDetails] = useState<Error | null>(null);
+  const [resolvedDevRoutes, setResolvedDevRoutes] = useState<
+    { path: string; file: string; componentName: string }[] | undefined
+  >(undefined);
   const isNavigating = useRef(false);
   const abortController = useRef<AbortController | null>(null);
 
@@ -208,8 +212,37 @@ export function Router({
   const errorPages =
     typeof window !== 'undefined' ? window.__MANIC_ERROR_PAGES__ : undefined;
 
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    Promise.all(
+      Object.entries(rawRoutes).map(async ([p, loader]) => {
+        const normalized = p || '/';
+        // Extract file path from the loader function source
+        const src = loader.toString();
+        const match = src.match(/import\(["']([^"']+)["']\)/);
+        const file = match
+          ? match[1].replace(/^\.\//, 'app/')
+          : (() => {
+              const filePart =
+                normalized === '/'
+                  ? 'index'
+                  : normalized
+                      .replace(/^\//, '')
+                      .replace(/:\.\.\.([^/]+)/g, '[...$1]')
+                      .replace(/:([^/]+)/g, '[$1]');
+              return `app/routes/${filePart}.tsx`;
+            })();
+        let componentName = '';
+        try {
+          componentName = (await loader()).default?.name ?? '';
+        } catch {}
+        return { path: normalized, file, componentName };
+      })
+    ).then(setResolvedDevRoutes);
+  }, []);
+
   const NotFoundPage = useErrorPage('notFound', errorPages?.notFound, NotFound);
-  const ErrorPage = useErrorPage('error', errorPages?.error, ServerError);
+  const ErrorPage = useErrorPage('error', errorPages?.error, process.env.NODE_ENV === 'production' ? ServerError : ErrorOverlay);
 
   // Compile routes into a registry exactly once
   const registry = useMemo(() => {
@@ -345,10 +378,11 @@ export function Router({
   if (!LoadedComponent) {
     const match = registry.match(currentPath);
     if (!match) {
+      const devRoutes = resolvedDevRoutes;
       return createElement(
         RouterContext.Provider,
         { value: { path: currentPath, navigate, params: {} } },
-        createElement(NotFoundPage, null)
+        createElement(NotFoundPage, { routes: devRoutes, currentPath } as any)
       );
     }
     // Show nothing while loading initial route (suspense-like)

@@ -6,6 +6,7 @@ export {
   useQueryParams,
 } from './src/router';
 export { NotFound } from './src/components/NotFound/index';
+export { ErrorOverlay } from './src/components/ErrorOverlay/index';
 export { ServerError } from './src/components/ServerError/index';
 export {
   defineConfig,

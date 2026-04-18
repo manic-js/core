@@ -1,6 +1,10 @@
 import { red, green, bold, cyan, yellow, gray, dim } from 'colorette';
 import { discoverRoutes, watchRoutes, generateSitemap } from './lib/discovery';
-import { htmlToMarkdown, estimateTokens, prefersMarkdown } from './lib/markdown';
+import {
+  htmlToMarkdown,
+  estimateTokens,
+  prefersMarkdown,
+} from './lib/markdown';
 import { loadConfig, type ManicConfig } from '../config/index';
 import { join } from 'path';
 
@@ -28,6 +32,8 @@ export async function createManicServer(options: {
 
   // Link headers collected from plugins (RFC 8288)
   const linkHeaders: string[] = [];
+  // HTML tags to inject into <head> (collected from plugins)
+  const htmlInjections: string[] = [];
 
   const serveHtml = async (req?: Request): Promise<Response> => {
     const headers: Record<string, string> = {
@@ -46,7 +52,17 @@ export async function createManicServer(options: {
       rawHtml = await Bun.file(htmlPath).text();
     } else {
       rawHtml =
-        typeof options.html === 'function' ? await options.html() : options.html;
+        typeof options.html === 'function'
+          ? await options.html()
+          : options.html;
+    }
+
+    // Inject plugin HTML tags into <head>
+    if (htmlInjections.length) {
+      rawHtml = rawHtml.replace(
+        '</head>',
+        `${htmlInjections.join('\n')}\n</head>`
+      );
     }
 
     // Markdown content negotiation (RFC 8288 / Markdown for Agents)
@@ -62,7 +78,9 @@ export async function createManicServer(options: {
     // Agent mode — return structured JSON about the app
     if (req && new URL(req.url).searchParams.get('mode') === 'agent') {
       const hasMcp = config.plugins?.some(p => p.name === '@manicjs/mcp');
-      const hasApiDocs = config.plugins?.some(p => p.name === '@manicjs/api-docs');
+      const hasApiDocs = config.plugins?.some(
+        p => p.name === '@manicjs/api-docs'
+      );
       const info = {
         name: config.app?.name ?? 'Manic App',
         mcp: hasMcp ? '/.well-known/mcp/server-card.json' : null,
@@ -93,12 +111,22 @@ export async function createManicServer(options: {
       if (file) {
         const line = url.searchParams.get('line') || '1';
         const col = url.searchParams.get('column') || '1';
-        const finalPath = file.replace(/^file:\/\/\//, '/').replace(/\\/g, '/');
-        const editor = process.env.EDITOR || 'code';
-        const args = editor.includes('code')
-          ? ['-g', `${finalPath}:${line}:${col}`]
-          : [finalPath];
-        Bun.spawn([editor, ...args]).unref();
+        const finalPath = file.startsWith('/')
+          ? file.replace(/\\/g, '/')
+          : `${process.cwd()}/${file}`.replace(/\\/g, '/');
+        try {
+          const editor = process.env.EDITOR || process.env.VISUAL;
+          if (editor) {
+            const args = editor.includes('code')
+              ? ['-g', `${finalPath}:${line}:${col}`]
+              : [finalPath];
+            Bun.spawn([editor, ...args]).unref();
+          } else {
+            // macOS: open in default editor; Linux: xdg-open
+            const opener = process.platform === 'darwin' ? 'open' : 'xdg-open';
+            Bun.spawn([opener, finalPath]).unref();
+          }
+        } catch {}
         return new Response('OK');
       }
       return new Response('Missing file', { status: 400 });
@@ -160,7 +188,10 @@ export async function createManicServer(options: {
       }
 
       if (htmlBundleNonce) {
-        if (prefersMarkdown(req) || new URL(req.url).searchParams.get('mode') === 'agent') {
+        if (
+          prefersMarkdown(req) ||
+          new URL(req.url).searchParams.get('mode') === 'agent'
+        ) {
           return serveHtml(req);
         }
         const res = await fetch(new Request(`${url.origin}${htmlBundleNonce}`));
@@ -220,6 +251,9 @@ export async function createManicServer(options: {
         addLinkHeader: (value: string) => {
           linkHeaders.push(value);
         },
+        injectHtml: (tags: string) => {
+          htmlInjections.push(tags);
+        },
       };
       for (const plugin of config.plugins) {
         if (plugin.configureServer) await plugin.configureServer(ctx);
@@ -257,9 +291,7 @@ export async function createManicServer(options: {
     linkset: [
       {
         anchor: '/api',
-        'service-desc': [
-          { href: '/openapi.json', type: 'application/json' },
-        ],
+        'service-desc': [{ href: '/openapi.json', type: 'application/json' }],
       },
     ],
   };
@@ -273,13 +305,19 @@ export async function createManicServer(options: {
     });
 
   // Built-in Link headers (RFC 8288 / RFC 9727)
-  linkHeaders.push('</openapi.json>; rel="service-desc"; type="application/json"');
-  linkHeaders.push('</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"');
+  linkHeaders.push(
+    '</openapi.json>; rel="service-desc"; type="application/json"'
+  );
+  linkHeaders.push(
+    '</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"'
+  );
 
   // MCP auto-discovery — advertise if the plugin registers the endpoint
   // The plugin itself adds the route; we pre-add the Link header so agents
   // see it on every HTML response regardless of plugin load order.
-  linkHeaders.push('</.well-known/mcp/server-card.json>; rel="mcp"; type="application/json"');
+  linkHeaders.push(
+    '</.well-known/mcp/server-card.json>; rel="mcp"; type="application/json"'
+  );
 
   if (config.plugins?.length) {
     const ctx = {
@@ -301,6 +339,9 @@ export async function createManicServer(options: {
       },
       addLinkHeader: (value: string) => {
         linkHeaders.push(value);
+      },
+      injectHtml: (tags: string) => {
+        htmlInjections.push(tags);
       },
     };
     for (const plugin of config.plugins) {
@@ -342,7 +383,9 @@ function logServerInfo(
   const mcpPlugin = config.plugins?.find(p => p.name === '@manicjs/mcp');
   if (mcpPlugin) {
     const mcpPath = (mcpPlugin as any).path ?? '/mcp';
-    console.log(`\n\t\t${cyan(bold('MCP'))}:      ${green(`${url.replace(/\/$/, '')}${mcpPath}`)}`);
+    console.log(
+      `\n\t\t${cyan(bold('MCP'))}:      ${green(`${url.replace(/\/$/, '')}${mcpPath}`)}`
+    );
   }
 
   console.log(`\n\t\t${green('Ready in')} ${bold(duration + 'ms')}`);
