@@ -59,6 +59,23 @@ export async function createManicServer(options: {
       return new Response(md, { headers });
     }
 
+    // Agent mode — return structured JSON about the app
+    if (req && new URL(req.url).searchParams.get('mode') === 'agent') {
+      const hasMcp = config.plugins?.some(p => p.name === '@manicjs/mcp');
+      const hasApiDocs = config.plugins?.some(p => p.name === '@manicjs/api-docs');
+      const info = {
+        name: config.app?.name ?? 'Manic App',
+        mcp: hasMcp ? '/.well-known/mcp/server-card.json' : null,
+        openapi: '/openapi.json',
+        docs: hasApiDocs ? '/docs' : null,
+        agentSkills: hasMcp ? '/.well-known/agent-skills/index.json' : null,
+        discovery: '/.well-known/api-catalog',
+      };
+      headers['Content-Type'] = 'application/json';
+      headers['Access-Control-Allow-Origin'] = '*';
+      return new Response(JSON.stringify(info, null, 2), { headers });
+    }
+
     return new Response(rawHtml, { headers });
   };
 
@@ -128,21 +145,25 @@ export async function createManicServer(options: {
     // In dev, check if the requested file exists on disk (e.g., main.tsx, .js, .css)
     // If it exists, serve it directly; otherwise fall through to SPA handler
     if (!prod) {
-      const filePath = pathname === '/' ? 'app/index.html' : pathname;
-      const file = Bun.file(filePath);
-      if (await file.exists()) {
-        return new Response(file, {
-          headers: {
-            'Content-Type': file.type,
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-          },
-        });
+      // Skip index.html — let serveHtml handle it so Link headers, markdown
+      // negotiation, and ?mode=agent all work correctly
+      if (pathname !== '/') {
+        const file = Bun.file(pathname);
+        if (await file.exists()) {
+          return new Response(file, {
+            headers: {
+              'Content-Type': file.type,
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+            },
+          });
+        }
       }
 
-      // In dev with HTMLBundle, internally fetch the hidden nonce route so Bun
-      // processes tailwindcss, .tsx imports, and HMR correctly for unknown routes.
-      // The client-side router will handle showing the 404 page.
       if (htmlBundleNonce) {
+        // For markdown/agent requests, serve processed HTML via serveHtml
+        if (prefersMarkdown(req) || new URL(req.url).searchParams.get('mode') === 'agent') {
+          return serveHtml(req);
+        }
         return fetch(new Request(`${url.origin}${htmlBundleNonce}`));
       }
     }
@@ -150,16 +171,18 @@ export async function createManicServer(options: {
     return serveHtml(req);
   };
 
-  // In dev with HTMLBundle, use the HTMLBundle directly for routes
-  // This allows Bun to handle HMR and asset bundling correctly
-  const pageHandler = isHtmlBundle && !prod
-    ? (req: Request) => prefersMarkdown(req) ? serveHtml(req) : options.html
-    : (req: Request) => serveHtml(req);
-
-  const bunRoutes: Record<string, any> = { '/': pageHandler };
-  if (htmlBundleNonce) bunRoutes[htmlBundleNonce] = options.html;
-  for (const route of routes) {
-    if (route.path !== '/') bunRoutes[route.path] = pageHandler;
+  const bunRoutes: Record<string, any> = {};
+  if (isHtmlBundle && !prod) {
+    // Only register the nonce route — Bun needs one static HTMLBundle route to
+    // process assets (Tailwind, HMR, .tsx imports). All page routes go through
+    // /* so Link headers, markdown, and ?mode=agent work correctly.
+    if (htmlBundleNonce) bunRoutes[htmlBundleNonce] = options.html;
+  } else {
+    const pageHandler = (req: Request) => serveHtml(req);
+    bunRoutes['/'] = pageHandler;
+    for (const route of routes) {
+      if (route.path !== '/') bunRoutes[route.path] = pageHandler;
+    }
   }
 
   if (config.mode === 'frontend') {
@@ -208,7 +231,7 @@ export async function createManicServer(options: {
     });
 
     if (!prod) watchRoutes('app/routes', () => {}).catch(() => {});
-    logServerInfo(server, port, hostname, prod, startTime, envKeys);
+    logServerInfo(server, port, hostname, prod, startTime, envKeys, config);
     return server;
   }
 
@@ -290,7 +313,7 @@ export async function createManicServer(options: {
   });
 
   if (!prod) watchRoutes('app/routes', () => {}).catch(() => {});
-  logServerInfo(server, port, hostname, prod, startTime, envKeys);
+  logServerInfo(server, port, hostname, prod, startTime, envKeys, config);
   return server;
 }
 
@@ -300,7 +323,8 @@ function logServerInfo(
   hostname: string,
   prod: boolean,
   startTime: number,
-  envKeys: string[]
+  envKeys: string[],
+  config: ManicConfig
 ) {
   const duration = Math.round(performance.now() - startTime);
   const displayHost = hostname === '0.0.0.0' ? 'localhost' : hostname;
@@ -309,6 +333,13 @@ function logServerInfo(
     `\n\n\t\t${red(bold('■ MANIC'))}            ${prod ? yellow(' PROD Server') : cyan(' DEV Server')}\n\t\t--- --- --- --- --- ---  --- ---`
   );
   console.log(`\n\t\t${cyan(bold('URL'))}:      ${green(url)}`);
+
+  const mcpPlugin = config.plugins?.find(p => p.name === '@manicjs/mcp');
+  if (mcpPlugin) {
+    const mcpPath = (mcpPlugin as any).path ?? '/mcp';
+    console.log(`\n\t\t${cyan(bold('MCP'))}:      ${green(`${url.replace(/\/$/, '')}${mcpPath}`)}`);
+  }
+
   console.log(`\n\t\t${green('Ready in')} ${bold(duration + 'ms')}`);
   if (envKeys.length > 0)
     console.log(

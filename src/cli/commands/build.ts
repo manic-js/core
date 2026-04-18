@@ -206,7 +206,12 @@ export async function build() {
             relativePath: string,
             content: string | Uint8Array
           ) {
-            await Bun.write(`${dist}/client/${relativePath}`, content);
+            const outputPath = `${dist}/client/${relativePath}`;
+            const dir = outputPath.split('/').slice(0, -1).join('/');
+            if (dir && !existsSync(dir)) {
+              await $`mkdir -p ${dir}`;
+            }
+            await Bun.write(outputPath, content);
           },
         });
         process.stdout.write(
