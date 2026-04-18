@@ -120,13 +120,12 @@ export async function build() {
   if (await globalCssFile.exists()) {
     originalCss = await globalCssFile.text();
     if (!originalCss.includes('manicjs')) {
-      const manicPkg = resolver.sync(process.cwd(), 'manicjs/package.json');
-      if (manicPkg.path) {
-        const manicSrc = manicPkg.path.replace('/package.json', '/src');
-        await Bun.write(globalCssPath, `@source '${manicSrc}/**/*.{tsx,ts}';\n` + originalCss);
-      }
+      // Resolve manicjs src path — works for both workspace symlink and installed package
+      const manicPkgPath = import.meta.resolve('manicjs/package.json').replace('file://', '');
+      const manicSrc = manicPkgPath.replace('/package.json', '/src');
+      await Bun.write(globalCssPath, `@source '${manicSrc}/**/*.{tsx,ts}';\n` + originalCss);
     } else {
-      originalCss = null; // already has it, no need to restore
+      originalCss = null;
     }
   }
 
