@@ -61,6 +61,8 @@ export interface ManicServerPluginContext extends ManicPluginContext {
     path: string,
     handler: (req: Request) => Response | Promise<Response>
   ): void;
+  /** Add a Link header to all HTML page responses (RFC 8288) */
+  addLinkHeader(value: string): void;
 }
 
 /** Extended context for build plugins */

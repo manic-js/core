@@ -1,5 +1,6 @@
 import { red, green, bold, cyan, yellow, gray, dim } from 'colorette';
 import { discoverRoutes, watchRoutes, generateSitemap } from './lib/discovery';
+import { htmlToMarkdown, estimateTokens, prefersMarkdown } from './lib/markdown';
 import { loadConfig, type ManicConfig } from '../config/index';
 import { join } from 'path';
 
@@ -25,22 +26,40 @@ export async function createManicServer(options: {
   const isHtmlBundle =
     options.html && typeof options.html === 'object' && 'index' in options.html;
 
-  const serveHtml = async (): Promise<Response> => {
+  // Link headers collected from plugins (RFC 8288)
+  const linkHeaders: string[] = [];
+
+  const serveHtml = async (req?: Request): Promise<Response> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'text/html; charset=utf-8',
+    };
+    if (linkHeaders.length) {
+      headers['Link'] = linkHeaders.join(', ');
+    }
+
+    let rawHtml: string;
     if (isHtmlBundle) {
       // In dev, serve from app/index.html; in prod, serve from .manic/client/index.html
       const htmlPath = prod
         ? join(process.cwd(), dist, 'client', 'index.html')
         : 'app/index.html';
-      const f = Bun.file(htmlPath);
-      return new Response(f, {
-        headers: { 'Content-Type': 'text/html; charset=utf-8' },
-      });
+      rawHtml = await Bun.file(htmlPath).text();
+    } else {
+      rawHtml =
+        typeof options.html === 'function' ? await options.html() : options.html;
     }
-    const html =
-      typeof options.html === 'function' ? await options.html() : options.html;
-    return new Response(html, {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-    });
+
+    // Markdown content negotiation (RFC 8288 / Markdown for Agents)
+    if (req && prefersMarkdown(req)) {
+      const md = htmlToMarkdown(rawHtml);
+      const tokens = estimateTokens(md);
+      headers['Content-Type'] = 'text/markdown; charset=utf-8';
+      headers['Vary'] = 'Accept';
+      headers['x-markdown-tokens'] = String(tokens);
+      return new Response(md, { headers });
+    }
+
+    return new Response(rawHtml, { headers });
   };
 
   // Hidden internal route so the catch-all can fetch the processed HTMLBundle
@@ -128,12 +147,14 @@ export async function createManicServer(options: {
       }
     }
 
-    return serveHtml();
+    return serveHtml(req);
   };
 
   // In dev with HTMLBundle, use the HTMLBundle directly for routes
   // This allows Bun to handle HMR and asset bundling correctly
-  const pageHandler = isHtmlBundle && !prod ? options.html : () => serveHtml();
+  const pageHandler = isHtmlBundle && !prod
+    ? (req: Request) => prefersMarkdown(req) ? serveHtml(req) : options.html
+    : (req: Request) => serveHtml(req);
 
   const bunRoutes: Record<string, any> = { '/': pageHandler };
   if (htmlBundleNonce) bunRoutes[htmlBundleNonce] = options.html;
@@ -148,6 +169,33 @@ export async function createManicServer(options: {
         new Response(sitemapXml, {
           headers: { 'content-type': 'application/xml' },
         });
+    }
+
+    if (config.plugins?.length) {
+      const ctx = {
+        config,
+        prod,
+        cwd: process.cwd(),
+        dist,
+        pageRoutes: routes.map(r => ({
+          path: r.path,
+          filePath: r.filePath,
+          dynamic: r.path.includes(':'),
+        })),
+        apiRoutes: [] as any[],
+        addRoute: (
+          path: string,
+          handler: (req: Request) => Response | Promise<Response>
+        ) => {
+          bunRoutes[path] = handler;
+        },
+        addLinkHeader: (value: string) => {
+          linkHeaders.push(value);
+        },
+      };
+      for (const plugin of config.plugins) {
+        if (plugin.configureServer) await plugin.configureServer(ctx);
+      }
     }
 
     const server = Bun.serve({
@@ -176,6 +224,35 @@ export async function createManicServer(options: {
   bunRoutes['/openapi.json'] = () =>
     new Response(specJson, { headers: { 'Content-Type': 'application/json' } });
 
+  // API catalog (RFC 9727) — /.well-known/api-catalog
+  const apiCatalog = {
+    linkset: [
+      {
+        anchor: '/api',
+        'service-desc': [
+          { href: '/openapi.json', type: 'application/json' },
+        ],
+      },
+    ],
+  };
+  const apiCatalogJson = JSON.stringify(apiCatalog);
+  bunRoutes['/.well-known/api-catalog'] = () =>
+    new Response(apiCatalogJson, {
+      headers: {
+        'Content-Type':
+          'application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"',
+      },
+    });
+
+  // Built-in Link headers (RFC 8288 / RFC 9727)
+  linkHeaders.push('</openapi.json>; rel="service-desc"; type="application/json"');
+  linkHeaders.push('</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"');
+
+  // MCP auto-discovery — advertise if the plugin registers the endpoint
+  // The plugin itself adds the route; we pre-add the Link header so agents
+  // see it on every HTML response regardless of plugin load order.
+  linkHeaders.push('</.well-known/mcp/server-card.json>; rel="mcp"; type="application/json"');
+
   if (config.plugins?.length) {
     const ctx = {
       config,
@@ -193,6 +270,9 @@ export async function createManicServer(options: {
         handler: (req: Request) => Response | Promise<Response>
       ) => {
         bunRoutes[path] = handler;
+      },
+      addLinkHeader: (value: string) => {
+        linkHeaders.push(value);
       },
     };
     for (const plugin of config.plugins) {

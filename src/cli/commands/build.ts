@@ -247,6 +247,23 @@ export async function build() {
       process.stdout.write(
         `\r${dim(green('● Bundling API routes... done'))}       \n`
       );
+
+      // Emit /.well-known/api-catalog (RFC 9727)
+      const apiCatalog = {
+        linkset: [
+          {
+            anchor: '/api',
+            'service-desc': [
+              { href: '/openapi.json', type: 'application/json' },
+            ],
+          },
+        ],
+      };
+      await $`mkdir -p ${dist}/client/.well-known`;
+      await Bun.write(
+        `${dist}/client/.well-known/api-catalog`,
+        JSON.stringify(apiCatalog)
+      );
     }
   }
 
