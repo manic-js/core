@@ -112,6 +112,21 @@ export async function build() {
     process.exit(1);
   }
 
+  // Inject @source for manicjs built-in components into a temp CSS wrapper
+  // so Tailwind scans NotFound, ServerError, etc. without user configuration.
+  const globalCssPath = 'app/global.css';
+  const tempCssPath = 'app/~global.css';
+  if (await Bun.file(globalCssPath).exists()) {
+    const manicPkg = resolver.sync(process.cwd(), 'manicjs/package.json');
+    if (manicPkg.path) {
+      const manicSrc = manicPkg.path.replace('/package.json', '/src');
+      await Bun.write(
+        tempCssPath,
+        `@source '${manicSrc}/**/*.tsx';\n@source '${manicSrc}/**/*.ts';\n@import './global.css';\n`
+      );
+    }
+  }
+
   const clientBuild = await Bun.build({
     entrypoints: [mainEntry.path],
     outdir: `${dist}/client`,

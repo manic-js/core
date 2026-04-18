@@ -6,6 +6,7 @@ interface AsciiDotsFullscreenProps {
 }
 
 const hexToRgb = (hex: string) => {
+  if (!hex || !hex.startsWith('#')) return '14, 14, 14';
   const parsed = hex.replace('#', '');
   const bigint = parseInt(parsed, 16);
   if (parsed.length === 3) {
@@ -135,8 +136,8 @@ export const BlinkingAsciiDots = ({
 
     const getColors = () => {
       const style = getComputedStyle(document.documentElement);
-      const bg = style.getPropertyValue('--color-background').trim();
-      const fg = style.getPropertyValue('--color-foreground').trim();
+      const bg = style.getPropertyValue('--theme-background').trim();
+      const fg = style.getPropertyValue('--theme-foreground').trim();
       return { backgroundColor: bg, textColor: hexToRgb(fg) };
     };
 
