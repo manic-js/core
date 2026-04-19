@@ -168,6 +168,55 @@ export function defineConfig(config: ManicConfig): ManicConfig {
   return config;
 }
 
+/**
+ * Helper for authoring plugins. Accepts the same shape as ManicPlugin but
+ * provides a `staticFiles` shorthand — an array of { path, content } entries
+ * that are automatically served as routes in dev and emitted as client files
+ * in production, eliminating the repetitive dev/prod parity boilerplate.
+ */
+export function createPlugin(options: {
+  name: string;
+  /** Static files to serve in dev and emit in prod automatically */
+  staticFiles?: Array<{
+    path: string;
+    content:
+      | string
+      | ((ctx: ManicPluginContext) => string | Promise<string>);
+    contentType?: string;
+  }>;
+  configureServer?(ctx: ManicServerPluginContext): void | Promise<void>;
+  build?(ctx: ManicBuildPluginContext): void | Promise<void>;
+}): ManicPlugin {
+  return {
+    name: options.name,
+
+    async configureServer(ctx) {
+      for (const file of options.staticFiles ?? []) {
+        const ct = file.contentType ?? 'text/plain; charset=utf-8';
+        ctx.addRoute(file.path, async () => {
+          const body =
+            typeof file.content === 'function'
+              ? await file.content(ctx)
+              : file.content;
+          return new Response(body, { headers: { 'content-type': ct } });
+        });
+      }
+      await options.configureServer?.(ctx);
+    },
+
+    async build(ctx) {
+      for (const file of options.staticFiles ?? []) {
+        const body =
+          typeof file.content === 'function'
+            ? await file.content(ctx)
+            : file.content;
+        await ctx.emitClientFile(file.path.replace(/^\//, ''), body);
+      }
+      await options.build?.(ctx);
+    },
+  };
+}
+
 let cachedConfig: ManicConfig | null = null;
 
 /** Loads and merges the user's manic.config.ts with defaults */

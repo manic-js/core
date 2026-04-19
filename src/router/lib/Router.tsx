@@ -204,6 +204,7 @@ export function Router({
   >(undefined);
   const isNavigating = useRef(false);
   const abortController = useRef<AbortController | null>(null);
+  const activeTransition = useRef<ReturnType<typeof document.startViewTransition> | null>(null);
 
   const rawRoutes: Record<string, LazyLoader> =
     manualRoutes ??
@@ -317,15 +318,19 @@ export function Router({
           viewTransitionsEnabled &&
           document.startViewTransition &&
           !isPopState &&
-          !replace;
+          !replace &&
+          !activeTransition.current;
 
         if (shouldAnimate) {
           try {
             const transition = document.startViewTransition!(() => {
               flushSync(updateState);
             });
-            transition.finished.catch(() => {});
-          } catch (e) {
+            activeTransition.current = transition;
+            transition.finished.catch(() => {}).finally(() => {
+              activeTransition.current = null;
+            });
+          } catch {
             updateState();
           }
         } else {
