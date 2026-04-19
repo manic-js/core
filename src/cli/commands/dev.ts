@@ -1,11 +1,22 @@
 import { loadConfig } from '../../config';
 import { existsSync, watch } from 'fs';
 
+/**
+ * Options for the dev command
+ * @interface DevOptions
+ */
 interface DevOptions {
+  /** Port number to run the development server on */
   port?: number;
+  /** Whether to expose the server to the network (0.0.0.0) */
   network?: boolean;
 }
 
+/**
+ * Generates bunfig.toml by merging plugin bunfig snippets
+ * @param plugins - Array of Manic plugins with bunfig configurations
+ * @internal
+ */
 async function writeBunfig(plugins: NonNullable<Awaited<ReturnType<typeof loadConfig>>['plugins']>) {
   const serveStaticPlugins: string[] = [];
   const otherSnippets: string[] = [];
@@ -31,6 +42,26 @@ async function writeBunfig(plugins: NonNullable<Awaited<ReturnType<typeof loadCo
   }
 }
 
+/**
+ * Starts the Manic development server with hot module replacement (HMR).
+ * Watches for config changes and automatically restarts the server.
+ *
+ * @param options - Dev server configuration options
+ * @param options.port - Port to run the dev server on (default: 6070 or config value)
+ * @param options.network - Whether to expose to network (0.0.0.0)
+ *
+ * @example
+ * // Start dev server on default port
+ * await dev({});
+ *
+ * @example
+ * // Start on custom port with network exposure
+ * await dev({ port: 3000, network: true });
+ *
+ * @example
+ * // Used via CLI
+ * // manic dev --port 3000 --network
+ */
 export async function dev({ port, network }: DevOptions): Promise<void> {
   const cwd = process.cwd();
 

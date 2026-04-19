@@ -1,14 +1,33 @@
+/**
+ * Summary of loaded environment variables
+ * @interface EnvSummary
+ */
 export interface EnvSummary {
+  /** Total number of loaded environment variables */
   total: number;
+  /** Number of public variables (MANIC_PUBLIC_*) */
   publicCount: number;
-  privateCount: number;
+  /** Number of private variables */
+  privateCount: boolean;
+  /** Whether environment files have been loaded */
   loaded: boolean;
 }
 
+/** Prefix for environment variables exposed to the browser */
 const PUBLIC_PREFIX = 'MANIC_PUBLIC_';
 let loadedEnvVars: Set<string> = new Set();
 let envLoaded = false;
 
+/**
+ * Loads environment variables from .env and .env.local files.
+ *
+ * Automatically called during server startup. Parses quoted values
+ * and handles # comments.
+ *
+ * @example
+ * await loadEnvFiles();
+ * // Loads .env and .env.local into process.env
+ */
 export async function loadEnvFiles(): Promise<void> {
   if (envLoaded) return;
 
@@ -47,10 +66,18 @@ export async function loadEnvFiles(): Promise<void> {
   envLoaded = true;
 }
 
+/**
+ * Gets list of all loaded environment variable keys
+ * @returns Array of environment variable names
+ */
 export function getLoadedEnvKeys(): string[] {
   return Array.from(loadedEnvVars);
 }
 
+/**
+ * Gets all public environment variables (those with MANIC_PUBLIC_ prefix)
+ * @returns Object with public env vars
+ */
 export function getPublicEnv(): Record<string, string> {
   const publicEnv: Record<string, string> = {};
   for (const key of loadedEnvVars) {
@@ -64,6 +91,10 @@ export function getPublicEnv(): Record<string, string> {
   return publicEnv;
 }
 
+/**
+ * Gets a summary of loaded environment variables
+ * @returns EnvSummary with counts
+ */
 export function getEnvSummary(): EnvSummary {
   let publicCount = 0;
   for (const key of loadedEnvVars) {
@@ -77,6 +108,10 @@ export function getEnvSummary(): EnvSummary {
   };
 }
 
+/**
+ * Generates JavaScript to inject public env vars into the browser
+ * @returns JavaScript string that sets window.__MANIC_ENV__
+ */
 export function generateEnvScript(): string {
   return `window.__MANIC_ENV__ = ${JSON.stringify(getPublicEnv())};`;
 }

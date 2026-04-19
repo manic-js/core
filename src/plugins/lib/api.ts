@@ -2,6 +2,29 @@ import { Hono } from 'hono';
 import { existsSync } from 'fs';
 import { join, isAbsolute } from 'path';
 
+/**
+ * Loads API routes from the app/api directory and creates a Hono application.
+ *
+ * Scans for .ts, .tsx, and .js files in app/api.
+ * Each file with a default export becomes an API route.
+ * Supports Hono apps, plain handlers, and dynamic route segments [param].
+ *
+ * @param apiDir - Directory containing API routes (default: "app/api")
+ * @returns Hono app, registered routes, and OpenAPI spec
+ *
+ * @example
+ * // Basic usage - loads from app/api
+ * const { app, routes, openApiSpec } = await apiLoaderPlugin();
+ *
+ * @example
+ * // Custom API directory
+ * const { app, routes } = await apiLoaderPlugin('server/api');
+ *
+ * @example
+ * // Using in ~manic.ts
+ * const { apiApp } = await apiLoaderPlugin('app/api');
+ * // apiApp is a Hono app with all routes registered
+ */
 export const apiLoaderPlugin = async (apiDir: string = 'app/api') => {
   const app = new Hono().basePath('/api');
   const routes: string[] = [];

@@ -11,21 +11,43 @@ import { oxcPlugin } from '../plugins/oxc';
 import { minifySync } from 'oxc-minify';
 import { ResolverFactory } from 'oxc-resolver';
 
+/**
+ * Module resolver for resolving TypeScript and JavaScript entry points
+ * @internal
+ */
 const resolver = new ResolverFactory({
   extensions: ['.ts', '.tsx', '.js', '.jsx'],
 });
 
+/**
+ * Formats a byte size into human-readable string
+ * @param bytes - Size in bytes
+ * @returns Formatted size string (e.g., "1.5 MB")
+ * @internal
+ */
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+/**
+ * Formats a duration in milliseconds into human-readable string
+ * @param ms - Duration in milliseconds
+ * @returns Formatted time string (e.g., "1.5s" or "500ms")
+ * @internal
+ */
 function formatTime(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)}ms`;
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
+/**
+ * Calculates the total size of a directory recursively
+ * @param dir - Directory path to calculate size for
+ * @returns Total size in bytes (excludes .map files)
+ * @internal
+ */
 async function getDirSize(dir: string): Promise<number> {
   let size = 0;
   if (!existsSync(dir)) return 0;
@@ -40,6 +62,13 @@ async function getDirSize(dir: string): Promise<number> {
   return size;
 }
 
+/**
+ * Counts route files in a directory matching a glob pattern (excludes ~ prefixed files)
+ * @param dir - Directory to scan
+ * @param pattern - Glob pattern to match files
+ * @returns Count of routes found
+ * @internal
+ */
 async function countRoutes(dir: string, pattern: string): Promise<number> {
   let count = 0;
   if (!existsSync(dir)) return 0;
@@ -78,6 +107,26 @@ async function minifyDir(dir: string) {
   );
 }
 
+/**
+ * Builds the Manic application for production deployment.
+ *
+ * This function performs the full production build pipeline:
+ * 1. Runs oxlint for code quality checks
+ * 2. Generates route manifest (~routes.generated.ts)
+ * 3. Bundles the client using Bun.build with OXC and Tailwind
+ * 4. Bundles API routes (if mode is fullstack)
+ * 5. Bundles the server entry (~manic.ts)
+ * 6. Minifies all outputs with oxc-minify
+ * 7. Runs provider build hooks for deployment adapters
+ *
+ * @example
+ * // Build for production
+ * await build();
+ *
+ * @example
+ * // Used via CLI
+ * // manic build
+ */
 export async function build() {
   const buildStart = performance.now();
   const config = await loadConfig();

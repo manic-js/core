@@ -8,21 +8,39 @@ import {
   type ReactNode,
 } from 'react';
 
+/** Theme mode: light, dark, or follow system preference */
 type Theme = 'light' | 'dark' | 'system';
 
+/** LocalStorage key for persisting theme preference */
 const STORAGE_KEY = 'manic-theme';
 
+/**
+ * Context value for theme state and actions
+ * @interface ThemeContextValue
+ */
 interface ThemeContextValue {
+  /** Current theme setting */
   theme: Theme;
+  /** Resolved theme (light/dark after resolving 'system') */
   resolvedTheme: 'light' | 'dark';
+  /** Set the theme */
   setTheme: (theme: Theme) => void;
+  /** Toggle between light and dark */
   toggle: () => void;
+  /** Whether dark mode is active */
   isDark: boolean;
+  /** Whether light mode is active */
   isLight: boolean;
 }
 
+/** React context for theme state - use useTheme() to access */
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+/**
+ * Gets the system's color scheme preference
+ * @returns 'light' or 'dark' based on system settings
+ * @internal
+ */
 function getSystemTheme(): 'light' | 'dark' {
   if (typeof window === 'undefined') return 'light';
   return window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -48,6 +66,22 @@ function applyTheme(theme: Theme) {
   }
 }
 
+/**
+ * Theme provider component that manages light/dark/system theme.
+ * Wraps your app to provide theme context to all child components.
+ * Adds 'dark' class to <html> element when dark mode is active.
+ *
+ * @param props - Component props
+ * @param props.children - Child components that need theme access
+ * @returns React element with theme context
+ *
+ * @example
+ * import { ThemeProvider } from 'manicjs/theme';
+ *
+ * <ThemeProvider>
+ *   <App />
+ * </ThemeProvider>
+ */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(getStoredTheme);
   const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() =>

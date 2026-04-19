@@ -1,4 +1,34 @@
 #!/usr/bin/env bun
+/**
+ * @file Manic CLI - Command-line interface for the Manic framework
+ * @description Entry point for the manic command-line tool. Handles command
+ * routing, help display, and argument parsing for development, building,
+ * deployment, and code quality tools.
+ *
+ * @example
+ * // Run development server
+ * manic dev
+ *
+ * @example
+ * // Build for production
+ * manic build
+ *
+ * @example
+ * // Start production server
+ * manic start
+ *
+ * @example
+ * // Deploy to configured provider
+ * manic deploy --run
+ *
+ * @example
+ * // Lint code
+ * manic lint
+ *
+ * @example
+ * // Format code
+ * manic fmt
+ */
 import { blue, bold, cyan, dim, red } from 'colorette';
 import { dev } from './commands/dev';
 import { build } from './commands/build';
@@ -7,6 +37,10 @@ import { deploy } from './commands/deploy';
 import { lint } from './commands/lint';
 import { fmt } from './commands/fmt';
 
+/**
+ * Available CLI commands mapped to their handler functions
+ * @internal
+ */
 const commands = {
   dev,
   build,

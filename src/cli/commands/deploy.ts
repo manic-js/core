@@ -3,6 +3,25 @@ import { existsSync } from 'fs';
 import { loadConfig } from '../../config';
 import { build } from './build';
 
+/**
+ * Deploys the built Manic application to configured providers.
+ *
+ * Builds the application first if needed, then runs provider-specific
+ * build hooks and generates deploy commands. Use --run or -r flag to
+ * execute deploy commands automatically.
+ *
+ * @example
+ * // Show deploy commands without running
+ * await deploy();
+ *
+ * @example
+ * // Build and deploy automatically
+ * await deploy(); // with --run flag
+ *
+ * @example
+ * // Used via CLI
+ * // manic deploy --run
+ */
 export async function deploy() {
   const config = await loadConfig();
   const providers = config.providers ?? [];

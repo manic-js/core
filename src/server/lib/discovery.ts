@@ -1,11 +1,35 @@
 import { watch } from 'fs/promises';
 import { cyan, dim, yellow } from 'colorette';
 
+/**
+ * Information about a discovered route
+ * @interface RouteInfo
+ */
 export interface RouteInfo {
+  /** URL path pattern (e.g., "/users/:id") */
   path: string;
+  /** Relative file path to the route component (e.g., "app/routes/users/[id].tsx") */
   filePath: string;
 }
 
+/**
+ * Discovers all routes in the app/routes directory.
+ *
+ * Scans for .tsx and .ts files, excluding files prefixed with ~.
+ * Converts file-based routing patterns to URL paths:
+ * - index.tsx -> /
+ * - about.tsx -> /about
+ * - users/index.tsx -> /users
+ * - users/[id].tsx -> /users/:id
+ * - [...slug].tsx -> /:...slug
+ *
+ * @param routesDir - Directory to scan for routes (default: "app/routes")
+ * @returns Array of route information with path and filePath
+ *
+ * @example
+ * const routes = await discoverRoutes();
+ * // Returns [{ path: "/", filePath: "app/routes/index.tsx" }, ...]
+ */
 export async function discoverRoutes(
   routesDir: string = 'app/routes'
 ): Promise<RouteInfo[]> {
@@ -40,6 +64,19 @@ export async function discoverRoutes(
   return routes;
 }
 
+/**
+ * Discovers a favicon in the assets directory.
+ *
+ * Checks for common favicon filenames in priority order:
+ * favicon.svg, favicon.png, favicon.ico, icon.svg, icon.png, icon.ico
+ *
+ * @param assetsDir - Directory to scan for favicons (default: "assets")
+ * @returns Path to the favicon file or null if not found
+ *
+ * @example
+ * const favicon = await discoverFavicon();
+ * // Returns "/assets/favicon.svg" or null
+ */
 export async function discoverFavicon(
   assetsDir: string = 'assets'
 ): Promise<string | null> {
@@ -59,11 +96,29 @@ export async function discoverFavicon(
   return idx !== -1 ? `/assets/${priorities[idx]}` : null;
 }
 
+/**
+ * Error page configuration
+ * @interface ErrorPages
+ */
 export interface ErrorPages {
+  /** File path to the custom 404 page */
   notFound?: string;
+  /** File path to the custom 500 error page */
   error?: string;
 }
 
+/**
+ * Discovers custom error pages in the routes directory.
+ *
+ * Looks for ~404.tsx and ~500.tsx files for custom error handling.
+ *
+ * @param routesDir - Directory to scan for error pages (default: "app/routes")
+ * @returns ErrorPages object with paths to custom error pages
+ *
+ * @example
+ * const errorPages = await discoverErrorRoutes();
+ * // Returns { notFound: "app/routes/~404.tsx" } or {}
+ */
 export async function discoverErrorPages(
   routesDir: string = 'app/routes'
 ): Promise<ErrorPages> {
@@ -82,6 +137,19 @@ export async function discoverErrorPages(
   return result;
 }
 
+/**
+ * Generates the routes manifest content for dynamic imports.
+ *
+ * Creates a TypeScript module that exports route mappings for the client router.
+ * Each route is mapped to a lazy import function.
+ *
+ * @param routesDir - Directory to scan for routes (default: "app/routes")
+ * @returns TypeScript content for the routes manifest
+ *
+ * @example
+ * const manifest = await generateRoutesManifest();
+ * // Returns "export const routes = {\n  \"/\": () => import(\"./routes/index.tsx\"),\n ...\n};"
+ */
 export async function generateRoutesManifest(
   routesDir: string = 'app/routes'
 ): Promise<string> {
@@ -104,6 +172,24 @@ export const errorPage = ${errorPages.error ? '() => import("./routes/~500.tsx")
 `;
 }
 
+/**
+ * Generates an XML sitemap from route information.
+ *
+ * Creates a sitemap.xml compatible with search engines.
+ * Excludes dynamic routes (containing :), and respects exclude list.
+ *
+ * @param routes - Array of route information
+ * @param config - Sitemap configuration options
+ * @param config.hostname - Base URL for the site (required)
+ * @param config.changefreq - How frequently pages change (default: "weekly")
+ * @param config.priority - Default priority for URLs (default: 0.8)
+ * @param config.exclude - Array of paths to exclude from sitemap
+ * @returns XML sitemap string
+ *
+ * @example
+ * const sitemap = generateSitemap(routes, { hostname: "https://example.com" });
+ * // Returns full sitemap.xml content
+ */
 export function generateSitemap(
   routes: RouteInfo[],
   config: {
@@ -156,6 +242,24 @@ async function touchManicEntry(
   }
 }
 
+/**
+ * Writes the routes manifest to a file.
+ *
+ * Generates and writes the routes manifest to ~routes.generated.ts.
+ * Optionally touches ~manic.ts to trigger a server restart.
+ *
+ * @param outPath - Output file path (default: "app/~routes.generated.ts")
+ * @param touch - Whether to touch ~manic.ts to trigger restart (default: false)
+ * @returns The generated manifest content
+ *
+ * @example
+ * await writeRoutesManifest();
+ * // Writes to app/~routes.generated.ts
+ *
+ * @example
+ * await writeRoutesManifest("app/routes.ts", true);
+ * // Writes and touches ~manic.ts
+ */
 export async function writeRoutesManifest(
   outPath: string = 'app/~routes.generated.ts',
   touch: boolean = false
@@ -166,6 +270,22 @@ export async function writeRoutesManifest(
   return content;
 }
 
+/**
+ * Watches the routes directory for changes and triggers callbacks.
+ *
+ * Monitors app/routes for file additions, modifications, and deletions.
+ * Debounces changes and calls the onChange callback with the affected route.
+ *
+ * @param routesDir - Directory to watch for changes
+ * @param onChange - Callback fired when routes change
+ * @param onChange.filename - The route/file that changed
+ * @param onChange.duration - Time taken to regenerate manifest
+ *
+ * @example
+ * await watchRoutes("app/routes", (filename, duration) => {
+ *   console.log(`Route ${filename} changed in ${duration}ms`);
+ * });
+ */
 export async function watchRoutes(
   routesDir: string,
   onChange: (filename?: string, duration?: number) => void

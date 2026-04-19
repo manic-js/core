@@ -8,6 +8,46 @@ import {
 import { loadConfig, type ManicConfig } from '../config/index';
 import { join } from 'path';
 
+/**
+ * Creates and starts the Manic production/development server.
+ *
+ * This is the main server entry point that handles:
+ * - Static asset serving (client build, assets directory)
+ * - HTML serving with plugin injection
+ * - Markdown content negotiation (RFC 8288)
+ * - Agent mode for AI agents (?mode=agent)
+ * - API routes (in fullstack mode)
+ * - OpenAPI spec generation
+ * - Link headers (RFC 8288)
+ * - Plugin route registration
+ *
+ * @param options - Server configuration options
+ * @param options.html - HTML content (string, Bun.file, or HTMLBundle)
+ * @param options.config - Manic configuration (loads from manic.config.ts if not provided)
+ * @param options.routes - Discovered routes (auto-discovered if not provided)
+ * @param options.envKeys - Environment variable keys to expose to client
+ * @param options.startTime - Start time for performance measurement
+ * @returns The Bun server instance
+ *
+ * @example
+ * // Basic usage with ~manic.ts
+ * import { createManicServer } from 'manicjs';
+ * import app from './app/index.html';
+ *
+ * const server = await createManicServer({
+ *   html: app,
+ * });
+ *
+ * @example
+ * // Full configuration
+ * const server = await createManicServer({
+ *   html: app,
+ *   config: myConfig,
+ *   routes: discoveredRoutes,
+ *   envKeys: ['API_KEY'],
+ *   startTime: performance.now(),
+ * });
+ */
 export async function createManicServer(options: {
   html: any; // string | HTMLBundle | (() => string)
   config?: ManicConfig;

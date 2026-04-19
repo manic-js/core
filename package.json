@@ -78,9 +78,12 @@
     "oxlint": "^1.60.0"
   },
   "devDependencies": {
+    "@shikijs/transformers": "^4.0.2",
     "@types/bun": "latest",
+    "@types/mdx": "^2.0.13",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "fumadocs-docgen": "^3.0.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-refresh": "^0.18.0",

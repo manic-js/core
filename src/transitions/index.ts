@@ -6,13 +6,21 @@ import {
   type ReactElement,
 } from 'react';
 
+/**
+ * Props for ViewTransition components
+ * @interface ViewTransitionProps
+ */
 interface ViewTransitionProps extends Omit<
   HTMLAttributes<HTMLElement>,
   'style'
 > {
+  /** Unique name for the view transition (links with matching names across pages) */
   name: string;
+  /** Child elements */
   children?: ReactNode;
+  /** CSS class name */
   className?: string;
+  /** Inline styles */
   style?: CSSProperties;
 }
 
@@ -36,6 +44,27 @@ function createViewTransitionElement(tag: string) {
   };
 }
 
+/**
+ * View Transitions components for animated page navigation.
+ *
+ * Use these components to mark elements that should animate between pages.
+ * Elements with matching `name` props will transition smoothly
+ * using the View Transitions API.
+ *
+ * @example
+ * import { ViewTransitions, navigate } from 'manicjs/transitions';
+ *
+ * <ViewTransitions.div name="user-card">
+ *   <UserCard user={user} />
+ * </ViewTransitions.div>
+ *
+ * @example
+ * // Using on another page with same name triggers animation
+ * <ViewTransitions.img name="user-avatar" src={user.avatar} />
+ *
+ * @example
+ * // Supported tags: div, span, main, section, article, header, footer, nav, aside, h1-h3, p, img, button, a, ul, li
+ */
 export const ViewTransitions = {
   div: createViewTransitionElement('div'),
   span: createViewTransitionElement('span'),

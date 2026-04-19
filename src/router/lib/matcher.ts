@@ -1,18 +1,40 @@
 import type { RouteDef } from './types';
 
+/**
+ * Result of matching a URL path to a route
+ * @interface RouteMatch
+ */
 interface RouteMatch {
+  /** The matched route path pattern */
   path: string;
+  /** The React component for this route */
   component: RouteDef['component'];
+  /** Extracted dynamic parameters from the URL */
   params: Record<string, string>;
 }
 
+/**
+ * Pre-compiled route with regex and metadata
+ * @interface CompiledRoute
+ * @internal
+ */
 interface CompiledRoute {
+  /** Original route path pattern */
   path: string;
+  /** Compiled regex for matching */
   regex: RegExp;
+  /** Names of dynamic parameters in order */
   paramNames: string[];
+  /** Priority score for route ordering */
   score: number;
 }
 
+/**
+ * Normalizes a URL path for consistent matching
+ * @param path - URL path to normalize
+ * @returns Normalized path
+ * @internal
+ */
 function normalizePath(path: string): string {
   if (path === '/') return path;
   return path.endsWith('/') ? path.slice(0, -1) : path;
