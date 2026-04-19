@@ -58,9 +58,6 @@ interface LinkProps {
  * <Link to="/user/1" viewTransitionName="user-card">View User</Link>
  */
 export function Link({
-
-/** Client-side navigation link with route prefetching on hover */
-export function Link({
   to,
   children,
   className,
