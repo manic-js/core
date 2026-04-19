@@ -185,6 +185,10 @@ export function defineConfig(config: ManicConfig): ManicConfig {
  */
 export function createPlugin(options: {
   name: string;
+  /** Absolute path to a Bun plugin script — auto-injected as --preload in dev, Bun.plugin() in build */
+  preload?: string;
+  /** TOML snippet for bunfig.toml — manic dev merges all [serve.static] entries automatically */
+  bunfig?: string;
   /** Static files to serve in dev and emit in prod automatically */
   staticFiles?: Array<{
     path: string;
@@ -198,6 +202,8 @@ export function createPlugin(options: {
 }): ManicPlugin {
   return {
     name: options.name,
+    preload: options.preload,
+    bunfig: options.bunfig,
 
     async configureServer(ctx) {
       for (const file of options.staticFiles ?? []) {

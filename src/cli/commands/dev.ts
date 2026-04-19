@@ -1,32 +1,20 @@
 import { loadConfig } from '../../config';
+import { existsSync, watch } from 'fs';
 
 interface DevOptions {
   port?: number;
   network?: boolean;
 }
 
-export async function dev({ port, network }: DevOptions): Promise<void> {
-  const config = await loadConfig();
-  const finalPort = port ?? config.server?.port ?? 6070;
-  const host = network ? '0.0.0.0' : 'localhost';
-  const env = {
-    ...process.env,
-    PORT: finalPort.toString(),
-    HOST: host,
-    NETWORK: network ? 'true' : 'false',
-  };
-
-  // Collect bunfig snippets from plugins and write bunfig.toml.
-  // Merge all [serve.static] plugins into a single section.
+async function writeBunfig(plugins: NonNullable<Awaited<ReturnType<typeof loadConfig>>['plugins']>) {
   const serveStaticPlugins: string[] = [];
   const otherSnippets: string[] = [];
 
-  for (const plugin of config.plugins ?? []) {
+  for (const plugin of plugins) {
     if (!plugin.bunfig) continue;
     const match = plugin.bunfig.match(/\[serve\.static\]\s*\nplugins\s*=\s*\[([^\]]+)\]/);
     if (match) {
-      const names = match[1].split(',').map(s => s.trim()).filter(Boolean);
-      serveStaticPlugins.push(...names);
+      serveStaticPlugins.push(...match[1].split(',').map(s => s.trim()).filter(Boolean));
     } else {
       otherSnippets.push(plugin.bunfig);
     }
@@ -41,16 +29,67 @@ export async function dev({ port, network }: DevOptions): Promise<void> {
   if (sections.length > 1) {
     await Bun.write(`${process.cwd()}/bunfig.toml`, sections.join('\n\n') + '\n');
   }
+}
 
-  const preloads = (config.plugins ?? [])
-    .flatMap(p => p.preload ? ['--preload', p.preload] : []);
+export async function dev({ port, network }: DevOptions): Promise<void> {
+  const cwd = process.cwd();
 
-  const proc = Bun.spawn(['bun', '--watch', ...preloads, '~manic.ts'], {
-    stdout: 'inherit',
-    stderr: 'inherit',
-    stdin: 'inherit',
-    env,
-  });
+  const loadAndSpawn = async () => {
+    // Invalidate config cache by deleting the cached module
+    const { cachedConfig } = await import('../../config') as any;
+    if (cachedConfig !== undefined) {
+      // Reset by re-importing with bust
+      const { loadConfig: load } = await import(`../../config?t=${Date.now()}`);
+      const config = await load(cwd);
+      return { config };
+    }
+    const config = await loadConfig(cwd);
+    return { config };
+  };
+
+  let config = await loadConfig(cwd);
+
+  const spawn = async (cfg: typeof config) => {
+    const finalPort = port ?? cfg.server?.port ?? 6070;
+    const host = network ? '0.0.0.0' : 'localhost';
+    const env = {
+      ...process.env,
+      PORT: finalPort.toString(),
+      HOST: host,
+      NETWORK: network ? 'true' : 'false',
+    };
+
+    await writeBunfig(cfg.plugins ?? []);
+
+    const preloads = (cfg.plugins ?? [])
+      .flatMap(p => p.preload ? ['--preload', p.preload] : []);
+
+    return Bun.spawn(['bun', '--watch', ...preloads, '~manic.ts'], {
+      stdout: 'inherit',
+      stderr: 'inherit',
+      stdin: 'inherit',
+      env,
+    });
+  };
+
+  let proc = await spawn(config);
+
+  // Watch manic.config.ts — restart server on change
+  const configFile = ['manic.config.ts', 'manic.config.js'].find(f => existsSync(`${cwd}/${f}`));
+  if (configFile) {
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+    watch(`${cwd}/${configFile}`, () => {
+      if (debounce) clearTimeout(debounce);
+      debounce = setTimeout(async () => {
+        console.log('\n[manic] config changed, restarting...\n');
+        proc.kill();
+        // Re-import config fresh (bust module cache via timestamp)
+        const mod = await import(`${cwd}/${configFile}?t=${Date.now()}`);
+        config = mod.default ?? mod;
+        proc = await spawn(config);
+      }, 100);
+    });
+  }
 
   const cleanup = (): void => {
     proc.kill();
