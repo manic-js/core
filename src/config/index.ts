@@ -80,6 +80,15 @@ export interface ManicBuildPluginContext extends ManicPluginContext {
 /** Plugin interface for extending Manic */
 export interface ManicPlugin {
   name: string;
+  /**
+   * Absolute path to a Bun plugin script to preload during dev and build.
+   */
+  preload?: string;
+  /**
+   * TOML snippet to append to bunfig.toml during dev (e.g. [serve.static] entries).
+   * The dev command collects these and writes them automatically.
+   */
+  bunfig?: string;
   configureServer?(ctx: ManicServerPluginContext): void | Promise<void>;
   build?(ctx: ManicBuildPluginContext): void | Promise<void>;
 }

@@ -102,6 +102,20 @@ export async function build() {
   await $`rm -rf ${dist}`;
   await $`mkdir -p ${dist}/client`;
 
+  // Register Bun plugins declared by manic plugins
+  const bunPlugins: import('bun').BunPlugin[] = [];
+  for (const plugin of config.plugins ?? []) {
+    if (plugin.preload) {
+      const mod = await import(plugin.preload);
+      // Support default export or named `plugin` export that is a BunPlugin
+      const bunPlugin = mod.default ?? mod.plugin;
+      if (bunPlugin && typeof bunPlugin === 'object' && bunPlugin.name) {
+        Bun.plugin(bunPlugin);
+        bunPlugins.push(bunPlugin);
+      }
+    }
+  }
+
   process.stdout.write(dim('● Bundling client...'));
 
   await writeRoutesManifest('app/~routes.generated.ts');
