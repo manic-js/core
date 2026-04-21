@@ -5,7 +5,7 @@ import { hc } from 'hono/client';
  *
  * This helper uses Hono's RPC client to provide fully typed API calls
  * from the browser to Manic API routes. The generated types match the API
- * route handlers defined in app/api/*/index.ts files.
+ * route handlers defined in app/api/index.ts files.
  *
  * @template T - The API route type (cast from the API module)
  * @param baseUrl - Base URL for API requests (defaults to current origin or localhost)
@@ -30,6 +30,7 @@ import { hc } from 'hono/client';
  * import type { AppRouter } from './app/api';
  * const client = createClient<AppRouter>();
  */
+
 export function createClient<T>(
   baseUrl: string = typeof window !== 'undefined'
     ? window.location.origin
