@@ -20,5 +20,5 @@ export {
   type ApiRoute,
 } from './src/config';
 export { ThemeProvider, useTheme, ThemeToggle } from './src/theme';
-export { ViewTransitions } from './src/transitions';
+export { ViewTransitions, setViewTransitions } from './src/transitions';
 export { createClient } from './src/config/client';
