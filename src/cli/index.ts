@@ -36,6 +36,7 @@ import { start } from './commands/start';
 import { deploy } from './commands/deploy';
 import { lint } from './commands/lint';
 import { fmt } from './commands/fmt';
+import { plugin } from './commands/plugin';
 
 /**
  * Available CLI commands mapped to their handler functions
@@ -48,6 +49,7 @@ const commands = {
   deploy,
   lint,
   fmt,
+  plugin,
 } as const;
 
 type Command = keyof typeof commands;
@@ -67,6 +69,7 @@ ${bold('Commands:')}
   ${cyan('deploy')}    Deploy to configured provider
   ${cyan('lint')}      Run oxlint to check code quality
   ${cyan('fmt')}       Format code using oxfmt
+  ${cyan('plugin')}    Manage plugins (add/remove)
 
 ${bold('Options:')}
   -h, --help        Show this help message
@@ -84,6 +87,9 @@ ${bold('Examples:')}
   ${blue('manic')} deploy --run
   ${blue('manic')} lint
   ${blue('manic')} fmt
+  ${blue('manic')} plugin add @manicjs/seo
+  ${blue('manic')} plugin remove @manicjs/seo
+  ${blue('manic')} plugin list
 `;
 
 async function main(): Promise<void> {
@@ -109,6 +115,17 @@ async function main(): Promise<void> {
     console.error(red(`Unknown command: ${command}`));
     console.log(helpText);
     process.exit(1);
+  }
+
+  if (command === 'plugin') {
+    try {
+      await plugin(args.slice(1));
+    } catch (error) {
+      console.error(red('Error running plugin command:'));
+      console.error(error);
+      process.exit(1);
+    }
+    return;
   }
 
   if (command === 'lint' || command === 'fmt') {

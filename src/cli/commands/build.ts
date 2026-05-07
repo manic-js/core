@@ -139,7 +139,10 @@ export async function build() {
   const oxlintBin = existsSync('node_modules/.bin/oxlint')
     ? 'node_modules/.bin/oxlint'
     : 'oxlint';
-  const lintResult = await $`${oxlintBin} .`.nothrow().quiet();
+  const hasOxlintConfig = existsSync('.oxlintrc.json');
+  const lintResult = hasOxlintConfig
+    ? await $`${oxlintBin} --config .oxlintrc.json .`.nothrow().quiet()
+    : await $`${oxlintBin} .`.nothrow().quiet();
 
   if (lintResult.exitCode !== 0) {
     process.stdout.write(`\r${dim(red('● Linting failed      '))}\n`);
