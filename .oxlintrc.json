@@ -1,0 +1,19 @@
+{
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.bun/**",
+    "**/dist/**",
+    "**/build/**"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn",
+    "pedantic": "warn"
+  },
+  "rules": {
+    "no-underscore-dangle": "off",
+    "max-lines-per-function": "off",
+    "require-unicode-regexp": "off"
+  }
+}

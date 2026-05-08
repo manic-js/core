@@ -1,33 +1,22 @@
-# `manicjs`
+<img src="https://raw.githubusercontent.com/manic-js/manic/main/demo/assets/wordmark.svg" alt="Manic" width="300" />
 
-High-performance React framework built for Bun.
+[![npm version](https://img.shields.io/npm/v/manicjs?logo=npm)](https://www.npmjs.com/package/manicjs)
+[![Bun](https://img.shields.io/badge/runtime-Bun-black?logo=bun)](https://bun.sh)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](https://opensource.org/licenses/GPL-3.0)
+
+The fastest framework for React.
 
 ## Documentation
 
 - Website: [manicjs.tech](https://www.manicjs.tech/)
 - Docs: [manicjs.tech/docs](https://www.manicjs.tech/docs)
-- Framework guide: [manicjs.tech/docs/framework](https://www.manicjs.tech/docs/framework)
-- API reference: [manicjs.tech/docs/api](https://www.manicjs.tech/docs/api)
-- CLI reference: [manicjs.tech/docs/cli](https://www.manicjs.tech/docs/cli)
+- Package docs: [https://www.manicjs.tech/docs/framework](https://www.manicjs.tech/docs/framework)
 
 ## Install
 
 ```bash
 bun add manicjs
 ```
-
-## Quick Start
-
-```bash
-bunx create-manic my-app
-cd my-app
-bun install
-bun dev
-```
-
-## Requirements
-
-- [Bun](https://bun.sh) `>= 1.3.13`
 
 ## License
 
