@@ -1,17 +1,14 @@
 # `manicjs`
 
-Core framework package for Manic.
+High-performance React framework built for Bun.
 
 ## Documentation
 
 - Website: [manicjs.tech](https://www.manicjs.tech/)
-- Framework docs: [manicjs.tech/docs/framework](https://www.manicjs.tech/docs/framework)
-- Getting started: [manicjs.tech/docs/framework/getting-started](https://www.manicjs.tech/docs/framework/getting-started)
+- Docs: [manicjs.tech/docs](https://www.manicjs.tech/docs)
+- Framework guide: [manicjs.tech/docs/framework](https://www.manicjs.tech/docs/framework)
+- API reference: [manicjs.tech/docs/api](https://www.manicjs.tech/docs/api)
 - CLI reference: [manicjs.tech/docs/cli](https://www.manicjs.tech/docs/cli)
-
-## Requirements
-
-- [Bun](https://bun.sh) `>= 1.3.13`
 
 ## Install
 
@@ -28,25 +25,9 @@ bun install
 bun dev
 ```
 
-## Minimal Config
+## Requirements
 
-```ts
-import { defineConfig } from 'manicjs/config';
-
-export default defineConfig({
-  app: { name: 'My App' },
-  server: { port: 6070 },
-});
-```
-
-## CLI
-
-```bash
-manic dev
-manic build
-manic start
-manic deploy
-```
+- [Bun](https://bun.sh) `>= 1.3.13`
 
 ## License
 

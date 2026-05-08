@@ -14,7 +14,7 @@
   "author": "Rahuletto",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Rahuletto/manic"
+    "url": "https://github.com/manic-js/manic"
   },
   "bin": {
     "manic": "./src/cli/index.ts"
@@ -96,5 +96,9 @@
   },
   "engines": {
     "bun": ">=1.0.0"
+  },
+  "homepage": "https://github.com/manic-js/manic#readme",
+  "bugs": {
+    "url": "https://github.com/manic-js/manic/issues"
   }
 }
