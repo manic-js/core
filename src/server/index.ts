@@ -1,4 +1,4 @@
-import { red, green, bold, cyan, yellow, gray, dim } from 'colorette';
+import { green, bold, cyan, yellow, gray, dim } from '@manicjs/tui';
 import { discoverRoutes, watchRoutes, generateSitemap } from './lib/discovery';
 import {
   htmlToMarkdown,
@@ -412,11 +412,15 @@ function logServerInfo(
   envKeys: string[],
   config: ManicConfig
 ) {
+  if (process.env.MANIC_TUI_SUPPRESS_SERVER_INFO === '1') {
+    return;
+  }
   const duration = Math.round(performance.now() - startTime);
   const displayHost = hostname === '0.0.0.0' ? 'localhost' : hostname;
   const url = `http://${displayHost}:${server.port ?? port}/`;
+  console.log(`\n${dim('────────────────────────────────────────')}`);
   console.log(
-    `\n\n\t\t${red(bold('■ MANIC'))}            ${prod ? yellow(' PROD Server') : cyan(' DEV Server')}\n\t\t--- --- --- --- --- ---  --- ---`
+    `${bold('Server')} ${prod ? yellow('[production]') : cyan('[development]')}`
   );
   console.log(`\n\t\t${cyan(bold('URL'))}:      ${green(url)}`);
 

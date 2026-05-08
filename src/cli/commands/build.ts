@@ -1,4 +1,17 @@
-import { green, red, dim, bold } from 'colorette';
+import {
+  red,
+  debugLog,
+  dim,
+  bold,
+  brandTitle,
+  divider,
+  hint,
+  sectionTitle,
+  statusError,
+  statusPending,
+  statusSuccess,
+  white,
+} from '@manicjs/tui';
 import { $ } from 'bun';
 import { statSync, readdirSync, existsSync } from 'fs';
 import bunPluginTailwind from 'bun-plugin-tailwind';
@@ -131,11 +144,29 @@ export async function build() {
   const buildStart = performance.now();
   const config = await loadConfig();
   const dist = config.build?.outdir ?? '.manic';
+  debugLog(
+    'build',
+    `pipeline start mode=${config.mode ?? 'fullstack'} outdir=${dist} plugins=${config.plugins?.length ?? 0}`
+  );
+  const updateStatus = (message: string): void => {
+    process.stdout.write(`\r${statusSuccess(message)}${' '.repeat(24)}`);
+  };
+  const updatePending = (message: string): void => {
+    process.stdout.write(`\r${statusPending(message)}${' '.repeat(24)}`);
+  };
+  const endStatusLine = (): void => {
+    process.stdout.write('\n');
+  };
 
-  console.log(`\n${red(bold('■ MANIC'))} ${dim('build')}\n`);
+  console.log(`\n${brandTitle('build')}\n`);
+  console.log(sectionTitle('Pipeline', 'build'));
+  console.log(`  ${hint('Mode:', config.mode ?? 'fullstack')}`);
+  console.log(`  ${hint('Outdir:', dist)}`);
+  console.log(`  ${hint('Plugins:', String(config.plugins?.length ?? 0))}`);
+  console.log(divider());
 
   // Auto-lint with oxlint before build
-  process.stdout.write(dim('● Linting with oxlint...'));
+  updatePending('Linting with oxlint...');
   const oxlintBin = existsSync('node_modules/.bin/oxlint')
     ? 'node_modules/.bin/oxlint'
     : 'oxlint';
@@ -145,11 +176,12 @@ export async function build() {
     : await $`${oxlintBin} .`.nothrow().quiet();
 
   if (lintResult.exitCode !== 0) {
-    process.stdout.write(`\r${dim(red('● Linting failed      '))}\n`);
+    process.stdout.write(`\r${statusError('Linting failed')}${' '.repeat(24)}\n`);
     console.log(lintResult.stdout.toString());
     process.exit(1);
   }
-  process.stdout.write(`\r${dim(green('● Linting passed      '))}\n`);
+  updateStatus('Linting passed');
+  debugLog('build', 'oxlint passed');
 
   await $`rm -rf ${dist}`;
   await $`mkdir -p ${dist}/client`;
@@ -164,11 +196,12 @@ export async function build() {
       if (bunPlugin && typeof bunPlugin === 'object' && bunPlugin.name) {
         Bun.plugin(bunPlugin);
         bunPlugins.push(bunPlugin);
+        debugLog('build', `registered bun preload plugin ${bunPlugin.name}`);
       }
     }
   }
 
-  process.stdout.write(dim('● Bundling client...'));
+  updatePending('Bundling client...');
 
   await writeRoutesManifest('app/~routes.generated.ts');
 
@@ -193,10 +226,12 @@ export async function build() {
     plugins: [oxcPlugin(), bunPluginTailwind],
   });
 
-  process.stdout.write(`\r${dim(green('● Bundling client... done'))}       \n`);
+  updateStatus('Bundling client... done');
+  debugLog('build', `client outputs=${clientBuild.outputs.length}`);
 
   if (!clientBuild.success) {
-    console.log(red('Client build failed'));
+    endStatusLine();
+    console.log(statusError('Client build failed'));
     clientBuild.logs.forEach(l => console.error(l));
     process.exit(1);
   }
@@ -287,9 +322,7 @@ export async function build() {
             htmlInjections.push(tags);
           },
         });
-        process.stdout.write(
-          dim(green(`● Plugin "${plugin.name}" completed\n`))
-        );
+        updateStatus(`Plugin "${plugin.name}" completed`);
       }
     }
     if (htmlInjections.length) {
@@ -301,13 +334,14 @@ export async function build() {
   const apiDir = 'app/api';
   const apiEntries: string[] = [];
   if (config.mode !== 'frontend' && existsSync(apiDir)) {
-    process.stdout.write(dim('● Bundling API routes...'));
+    updatePending('Bundling API routes...');
     const glob = new Bun.Glob('**/index.ts');
     for await (const file of glob.scan({ cwd: apiDir })) {
       apiEntries.push(`${apiDir}/${file}`);
     }
 
     if (apiEntries.length > 0) {
+      debugLog('build', `api entries discovered=${apiEntries.length}`);
       await $`mkdir -p ${dist}/api`;
       for (const entry of apiEntries) {
         const outName = entry
@@ -328,9 +362,7 @@ export async function build() {
         });
       }
 
-      process.stdout.write(
-        `\r${dim(green('● Bundling API routes... done'))}       \n`
-      );
+      updateStatus('Bundling API routes... done');
 
       // Emit /.well-known/api-catalog (RFC 9727)
       const apiCatalog = {
@@ -351,7 +383,7 @@ export async function build() {
     }
   }
 
-  process.stdout.write(dim('● Bundling server...'));
+  updatePending('Bundling server...');
 
   const serverResolution = resolver.sync(process.cwd(), './~manic');
   if (!serverResolution.path) {
@@ -399,18 +431,20 @@ export async function build() {
     process.exit(1);
   }
 
-  process.stdout.write(`\r${dim(green('● Bundling server... done'))}       \n`);
+  updateStatus('Bundling server... done');
+  debugLog('build', `server build success=${serverBuild.success}`);
 
   // Minify all output in parallel (client + api + server)
-  process.stdout.write(dim('● Minifying with oxc-minify...'));
+  updatePending('Minifying with oxc-minify...');
   await Promise.all([
     minifyDir(`${dist}/client`),
     existsSync(`${dist}/api`) ? minifyDir(`${dist}/api`) : Promise.resolve(),
     minifyDir(dist), // catches server.js
   ]);
-  process.stdout.write(
-    `\r${dim(green('● Minifying with oxc-minify... done'))}\n`
-  );
+  updateStatus('Minifying with oxc-minify... done');
+  updateStatus('All checks are done!');
+  endStatusLine();
+  console.log(dim('│'));
 
   const buildTime = performance.now() - buildStart;
   const clientSize = await getDirSize(`${dist}/client`);
@@ -420,26 +454,31 @@ export async function build() {
     : 0;
   const serverSize = serverJsSize + apiSize;
   const totalSize = clientSize + serverSize;
+  debugLog(
+    'build',
+    `bundle sizes client=${clientSize} server=${serverSize} total=${totalSize} bytes`
+  );
   const pageCount = await countRoutes('app/routes', '**/*.tsx');
   const apiCount = await countRoutes('app/api', '**/index.ts');
 
-  console.log(bold(green('\n✓ Build completed successfully\n')));
-  console.log(bold('Production Bundle:'));
-  console.log(dim('────────────────────────────────────────'));
+  console.log(statusSuccess('Build completed successfully'));
+  console.log('');
+  console.log(sectionTitle('Production Bundle', 'build'));
+  console.log(divider());
   console.log(
-    `${dim('Server')}              ${formatSize(serverSize).padStart(10)} ${dim(
+    `${white('Server')}              ${formatSize(serverSize).padStart(10)} ${dim(
       `(${apiCount} routes)`
     )}`
   );
   console.log(
-    `${dim('Client')}              ${formatSize(clientSize).padStart(10)} ${dim(
+    `${white('Client')}              ${formatSize(clientSize).padStart(10)} ${dim(
       `(${pageCount} routes)`
     )}`
   );
-  console.log(dim('────────────────────────────────────────'));
+  console.log(divider());
   console.log(
     bold(
-      `${dim('Total')}               ${formatSize(totalSize).padStart(10)}` +
+      `${white('Total')}               ${formatSize(totalSize).padStart(10)}` +
         '\n'
     )
   );
@@ -479,5 +518,5 @@ export async function build() {
     }
   }
 
-  console.log(dim(`Start: ${green('bun start')}\n`));
+  console.log('');
 }

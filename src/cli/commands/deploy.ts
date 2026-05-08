@@ -1,4 +1,17 @@
-import { green, red, dim, bold, cyan, yellow } from 'colorette';
+import {
+  brandTitle,
+  cyan,
+  dim,
+  divider,
+  eventLine,
+  hint,
+  red,
+  sectionTitle,
+  statusError,
+  statusPending,
+  statusSuccess,
+  yellow,
+} from '@manicjs/tui';
 import { existsSync } from 'fs';
 import { loadConfig } from '../../config';
 import { build } from './build';
@@ -27,23 +40,28 @@ export async function deploy() {
   const providers = config.providers ?? [];
 
   if (providers.length === 0) {
-    console.log(red('\n✗ No providers configured in manic.config.ts\n'));
+    console.log(`\n${statusError('No providers configured in manic.config.ts')}`);
     console.log(dim('Add a provider to deploy:'));
     console.log(cyan('\n  import { vercel } from "@manicjs/providers";\n'));
     console.log(dim('  providers: [vercel()]'));
     process.exit(1);
   }
 
+  const shouldRun =
+    process.argv.includes('--run') || process.argv.includes('-r');
   const providerNames = providers.map(p => p.name).join(', ');
-  console.log(
-    `\n${red(bold('■ MANIC'))} ${dim('deploy')} → ${cyan(providerNames)}\n`
-  );
+  console.log(`\n${brandTitle('deploy')}`);
+  console.log(divider());
+  console.log(sectionTitle('Deployment Session', 'production'));
+  console.log(`  ${hint('Providers:', providerNames)}`);
+  console.log(`  ${hint('Mode:', shouldRun ? 'run' : 'preview')}`);
+  console.log(divider());
 
   const dist = config.build?.outdir ?? '.manic';
   if (!existsSync(dist)) {
-    console.log(dim('● Building first...'));
+    console.log(statusPending('Build output missing, running build first...'));
     await build();
-    console.log('');
+    console.log(dim('│'));
   }
 
   const projectName =
@@ -67,23 +85,23 @@ export async function deploy() {
     },
   };
 
-  const shouldRun =
-    process.argv.includes('--run') || process.argv.includes('-r');
-
-  // Process each provider
   for (const provider of providers) {
-    console.log(bold(`\n📦 ${provider.name}`));
-    console.log(dim('─'.repeat(40)));
+    console.log(eventLine('deploy', `provider ${provider.name}`, 'info'));
 
     const deployInfo = deployCommands[provider.name];
     if (!deployInfo) {
-      console.log(yellow(`  ⚠ Unknown provider: ${provider.name}`));
-      console.log(dim('  Run the deploy command manually for your platform.'));
+      console.log(
+        eventLine(
+          'deploy',
+          `unknown provider "${provider.name}", run deployment manually`,
+          'warn'
+        )
+      );
       continue;
     }
 
     if (deployInfo.configFile && !existsSync(deployInfo.configFile)) {
-      console.log(dim(`  ● Generating ${deployInfo.configFile}...`));
+      console.log(statusPending(`Generating ${deployInfo.configFile}...`));
 
       if (provider.name === 'vercel') {
         const vercelConfig = {
@@ -116,26 +134,30 @@ export async function deploy() {
         await Bun.write('netlify.toml', netlifyToml);
       }
 
-      console.log(dim(green(`  ● Generated ${deployInfo.configFile}`)));
+      console.log(statusSuccess(`Generated ${deployInfo.configFile}`));
     }
 
-    console.log(`  ${bold('Command:')} ${green(deployInfo.command)}`);
+    console.log(`  ${hint('Command:', deployInfo.command)}`);
 
     if (shouldRun) {
-      console.log(dim('\n  ● Running deploy...\n'));
+      console.log(statusPending(`Running ${provider.name} deploy...`));
       const proc = Bun.spawn(deployInfo.command.split(' '), {
         stdio: ['inherit', 'inherit', 'inherit'],
         cwd: process.cwd(),
       });
-      await proc.exited;
+      const code = await proc.exited;
+      if (code === 0) {
+        console.log(statusSuccess(`${provider.name} deploy completed`));
+      } else {
+        console.log(statusError(`${provider.name} deploy failed (exit ${code})`));
+      }
+    } else {
+      console.log(eventLine('deploy', `preview only for ${provider.name}`, 'info'));
     }
+    console.log(dim('│'));
   }
 
   if (!shouldRun) {
-    console.log(
-      dim(
-        '\nAdd --run or -r flag to execute the deploy commands automatically.\n'
-      )
-    );
+    console.log(yellow('\nAdd --run or -r flag to execute the deploy commands automatically.\n'));
   }
 }

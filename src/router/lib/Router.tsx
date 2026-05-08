@@ -115,6 +115,15 @@ export function setViewTransitions(enabled: boolean): void {
   viewTransitionsEnabled = enabled;
 }
 
+function isBenignTransitionAbort(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    error.name === 'InvalidStateError' &&
+    message.includes('transition was aborted because of invalid state')
+  );
+}
+
 /** Navigate to a path programmatically */
 export function navigate(to: string, options?: { replace?: boolean }): void {
   if (typeof window !== 'undefined' && window.__MANIC_NAVIGATE__) {
@@ -327,7 +336,23 @@ export function Router({
               flushSync(updateState);
             });
             activeTransition.current = transition;
-            transition.finished.catch(() => {}).finally(() => {
+            // Some browsers reject transition promises for benign abort states.
+            // Suppress only the known noisy InvalidStateError and keep others visible.
+            transition.ready.catch(err => {
+              if (!isBenignTransitionAbort(err)) {
+                console.warn('[manic] view transition ready failed:', err);
+              }
+            });
+            transition.updateCallbackDone.catch(err => {
+              if (!isBenignTransitionAbort(err)) {
+                console.warn('[manic] view transition update failed:', err);
+              }
+            });
+            transition.finished.catch(err => {
+              if (!isBenignTransitionAbort(err)) {
+                console.warn('[manic] view transition finished failed:', err);
+              }
+            }).finally(() => {
               activeTransition.current = null;
             });
           } catch {

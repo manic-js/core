@@ -1,5 +1,5 @@
 import { watch } from 'fs/promises';
-import { cyan, dim, yellow } from 'colorette';
+import { cyan, dim, eventLine } from '@manicjs/tui';
 
 /**
  * Information about a discovered route
@@ -158,7 +158,9 @@ export async function generateRoutesManifest(
 
   const routeEntries = routes
     .map(r => {
-      const importPath = `./${r.filePath.replace('app/', '')}`;
+      const importPath = `./${r.filePath
+        .replace('app/', '')
+        .replace(/\.tsx?$/, '')}`;
       return `  "${r.path}": () => import("${importPath}"),`;
     })
     .join('\n');
@@ -167,8 +169,8 @@ export async function generateRoutesManifest(
 ${routeEntries}
 };
 
-export const notFoundPage = ${errorPages.notFound ? '() => import("./routes/~404.tsx")' : 'undefined'};
-export const errorPage = ${errorPages.error ? '() => import("./routes/~500.tsx")' : 'undefined'};
+export const notFoundPage = ${errorPages.notFound ? '() => import("./routes/~404")' : 'undefined'};
+export const errorPage = ${errorPages.error ? '() => import("./routes/~500")' : 'undefined'};
 `;
 }
 
@@ -324,9 +326,5 @@ export async function watchRoutes(
 
 export function logRouteChange(filename: string, durationMs: number): void {
   const route = filename.startsWith('/') ? filename : `/${filename}`;
-  console.log(
-    `${yellow('[Manic]')} ${dim('Route updated:')} ${cyan(route)} ${dim(
-      `(${durationMs}ms)`
-    )}`
-  );
+  console.log(eventLine('routes', `updated ${cyan(route)} ${dim(`(${durationMs}ms)`)}`));
 }

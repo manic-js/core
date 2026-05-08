@@ -398,7 +398,7 @@ export function ErrorOverlay({ error }: { error?: Error }) {
               flexWrap: 'wrap',
             }}
           >
-            <span style={{ color: '#2dd9da', fontWeight: 600 }}>ManicScan</span>
+            <span style={{ color: '#2dd9da', fontWeight: 600 }}>[client]</span>
             <span>•</span>
             <span style={{ color: '#aaa', wordBreak: 'break-all' }}>
               {frame.file

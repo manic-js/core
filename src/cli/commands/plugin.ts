@@ -1,5 +1,17 @@
 import { $ } from 'bun';
 import { existsSync } from 'fs';
+import {
+  brandTitle,
+  cyan,
+  dim,
+  divider,
+  eventLine,
+  sectionTitle,
+  statusError,
+  statusPending,
+  statusSuccess,
+  yellow,
+} from '@manicjs/tui';
 
 type PluginAction = 'add' | 'remove' | 'list';
 
@@ -21,6 +33,10 @@ function deriveFactoryName(pkgName: string): string {
   return base.startsWith('manic') ? base.slice('manic'.length) || base : base;
 }
 
+function isValidManicPluginPackageName(pkgName: string): boolean {
+  return /^@manicjs\/[a-z0-9-]+$/u.test(pkgName);
+}
+
 function ensurePluginsArray(config: string): string {
   if (/plugins\s*:\s*\[/u.test(config)) return config;
   return config.replace(/\}\s*[)]\s*$/u, '  plugins: [],\n});\n');
@@ -35,7 +51,11 @@ function addPluginToConfig(
   let next = config;
 
   const importLine = `import ${importClause} from "${pkgName}";`;
-  if (!next.includes(importLine)) {
+  const hasPackageImport = new RegExp(
+    `^import\\s+.+\\s+from\\s+["']${pkgName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}["'];?$`,
+    'mu'
+  ).test(next);
+  if (!hasPackageImport) {
     const lines = next.split('\n');
     let insertAt = 0;
     while (insertAt < lines.length && lines[insertAt].startsWith('import ')) {
@@ -87,7 +107,8 @@ function removePluginFromConfig(
 
   next = next.replace(
     /plugins\s*:\s*\[([\s\S]*?)\]/mu,
-    (_full, content: string) => {
+    (full, content: string) => {
+      void full;
       const entries = content
         .split(',')
         .map(entry => entry.trim())
@@ -157,18 +178,36 @@ export async function plugin(args: string[]): Promise<void> {
   const action = args[0] as PluginAction | undefined;
   const pkgName = args[1];
 
+  console.log(`\n${brandTitle('plugin')}`);
+  console.log(divider());
+  console.log(sectionTitle('Plugin Manager'));
+  console.log(
+    `  ${dim('Actions:')} ${cyan('list')} | ${cyan('add <package>')} | ${cyan(
+      'remove <package>'
+    )}`
+  );
+  console.log(divider());
+
   if (!action || !['add', 'remove', 'list'].includes(action)) {
-    console.log('Usage: manic plugin <add|remove|list> [package-name]');
+    console.log(statusError('Usage: manic plugin <add|remove|list> [package-name]'));
     process.exit(1);
   }
   if ((action === 'add' || action === 'remove') && !pkgName) {
-    console.log('Usage: manic plugin <add|remove> <package-name>');
+    console.log(statusError('Usage: manic plugin <add|remove> <package-name>'));
+    process.exit(1);
+  }
+  if ((action === 'add' || action === 'remove') && !isValidManicPluginPackageName(pkgName!)) {
+    console.log(
+      statusError(
+        `Invalid plugin package "${pkgName}". Use a valid Manic plugin like @manicjs/seo.`
+      )
+    );
     process.exit(1);
   }
 
   const configPath = resolveConfigPath();
   if (!configPath) {
-    console.error('No manic.config.ts/js found in current directory.');
+    console.error(statusError('No manic.config.ts/js found in current directory.'));
     process.exit(1);
   }
   const config = await Bun.file(configPath).text();
@@ -176,48 +215,34 @@ export async function plugin(args: string[]): Promise<void> {
   if (action === 'list') {
     const plugins = parsePluginList(config);
     if (!plugins.length) {
-      console.log('No plugins configured in manic.config.*');
+      console.log(eventLine('plugin', 'no plugins configured in manic.config.*', 'warn'));
       return;
     }
-    console.log('Configured plugins:');
+    console.log(statusSuccess('Configured plugins:'));
     for (const pluginPkg of plugins) {
-      console.log(`- ${pluginPkg}`);
+      console.log(`  ${yellow('•')} ${cyan(pluginPkg)}`);
     }
     return;
   }
 
   const pkgManager = existsSync('bun.lock') ? 'bun' : 'bun';
+  console.log(
+    statusPending(
+      action === 'add'
+        ? `Installing ${pkgName!}...`
+        : `Removing ${pkgName!}...`
+    )
+  );
   if (action === 'add') {
     await $`${pkgManager} add ${pkgName!}`;
   } else {
     await $`${pkgManager} remove ${pkgName!}`;
   }
+  console.log(dim('│'));
 
-  let importClause = `{ ${deriveFactoryName(pkgName)} }`;
-  let callExpr = `${deriveFactoryName(pkgName)}()`;
-
-  if (action === 'add') {
-    try {
-      const mod = await import(pkgName!);
-      const guessed = deriveFactoryName(pkgName!);
-      if (typeof mod.default === 'function') {
-        const alias = `${guessed}Plugin`;
-        importClause = `${alias}`;
-        callExpr = `${alias}()`;
-      } else if (typeof mod[guessed] === 'function') {
-        importClause = `{ ${guessed} }`;
-        callExpr = `${guessed}()`;
-      } else {
-        const firstFn = Object.keys(mod).find(k => typeof mod[k] === 'function');
-        if (firstFn) {
-          importClause = `{ ${firstFn} }`;
-          callExpr = `${firstFn}()`;
-        }
-      }
-    } catch {
-      // Keep heuristic import/call. Config update can be fixed manually if package has unusual exports.
-    }
-  }
+  const factoryName = deriveFactoryName(pkgName!);
+  const importClause = `{ ${factoryName} }`;
+  const callExpr = `${factoryName}()`;
 
   const updated =
     action === 'add'
@@ -227,7 +252,7 @@ export async function plugin(args: string[]): Promise<void> {
   await Bun.write(configPath, updated);
   console.log(
     action === 'add'
-      ? `Added ${pkgName!} and updated ${configPath}.`
-      : `Removed ${pkgName!} and updated ${configPath}.`
+      ? statusSuccess(`Added ${pkgName!} and updated ${configPath}`)
+      : statusSuccess(`Removed ${pkgName!} and updated ${configPath}`)
   );
 }
