@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/manic-js/manic/main/demo/assets/wordmark.svg" alt="Manic" width="300" />
+<img src="https://raw.githubusercontent.com/Rahuletto/manic/main/demo/assets/wordmark.svg" alt="Manic" width="300" />
 
 [![npm version](https://img.shields.io/npm/v/manicjs?logo=npm)](https://www.npmjs.com/package/manicjs)
 [![Bun](https://img.shields.io/badge/runtime-Bun-black?logo=bun)](https://bun.sh)
