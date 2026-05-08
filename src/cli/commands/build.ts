@@ -11,22 +11,25 @@ import {
   statusPending,
   statusSuccess,
   white,
-} from "@manicjs/tui";
-import { $ } from "bun";
-import { statSync, readdirSync, existsSync } from "fs";
-import bunPluginTailwind from "bun-plugin-tailwind";
-import { loadConfig } from "../../config";
-import { discoverRoutes, writeRoutesManifest } from "../../server/lib/discovery";
-import { oxcPlugin } from "../plugins/oxc";
-import { minifySync } from "oxc-minify";
-import { ResolverFactory } from "oxc-resolver";
+} from '@manicjs/tui';
+import { $ } from 'bun';
+import { statSync, readdirSync, existsSync } from 'fs';
+import bunPluginTailwind from 'bun-plugin-tailwind';
+import { loadConfig } from '../../config';
+import {
+  discoverRoutes,
+  writeRoutesManifest,
+} from '../../server/lib/discovery';
+import { oxcPlugin } from '../plugins/oxc';
+import { minifySync } from 'oxc-minify';
+import { ResolverFactory } from 'oxc-resolver';
 
 /**
  * Module resolver for resolving TypeScript and JavaScript entry points
  * @internal
  */
 const resolver = new ResolverFactory({
-  extensions: [".ts", ".tsx", ".js", ".jsx"],
+  extensions: ['.ts', '.tsx', '.js', '.jsx'],
 });
 
 /**
@@ -64,7 +67,7 @@ async function getDirSize(dir: string): Promise<number> {
 
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = `${dir}/${entry.name}`;
-    if (entry.isFile() && path.endsWith(".map")) {
+    if (entry.isFile() && path.endsWith('.map')) {
       continue;
     }
     size += entry.isDirectory() ? await getDirSize(path) : statSync(path).size;
@@ -84,32 +87,36 @@ async function countRoutes(dir: string, pattern: string): Promise<number> {
   if (!existsSync(dir)) return 0;
   const glob = new Bun.Glob(pattern);
   for await (const file of glob.scan({ cwd: dir })) {
-    if (!file.startsWith("~")) count++;
+    if (!file.startsWith('~')) count++;
   }
   return count;
 }
 
 async function minifyDir(dir: string) {
-  const glob = new Bun.Glob("**/*.js");
+  const glob = new Bun.Glob('**/*.js');
   const files: string[] = [];
-  for await (const file of glob.scan({ cwd: dir })) files.push(`${dir}/${file}`);
+  for await (const file of glob.scan({ cwd: dir }))
+    files.push(`${dir}/${file}`);
 
   await Promise.all(
-    files.map(async (filePath) => {
+    files.map(async filePath => {
       const code = await Bun.file(filePath).text();
       try {
         const minified = minifySync(filePath, code, {
-          compress: { target: "es2022" },
+          compress: { target: 'es2022' },
           mangle: true,
           codegen: { removeWhitespace: true },
         });
         if (minified.errors?.length)
-          console.warn(`[Manic Minify] Warning in ${filePath}:`, minified.errors);
+          console.warn(
+            `[Manic Minify] Warning in ${filePath}:`,
+            minified.errors
+          );
         await Bun.write(filePath, minified.code);
       } catch (e) {
         console.error(`[Manic Minify] Failed to minify ${filePath}:`, e);
       }
-    }),
+    })
   );
 }
 
@@ -136,67 +143,71 @@ async function minifyDir(dir: string) {
 export async function build() {
   const buildStart = performance.now();
   const config = await loadConfig();
-  const dist = config.build?.outdir ?? ".manic";
+  const dist = config.build?.outdir ?? '.manic';
   debugLog(
-    "build",
-    `pipeline start mode=${config.mode ?? "fullstack"} outdir=${dist} plugins=${config.plugins?.length ?? 0}`,
+    'build',
+    `pipeline start mode=${config.mode ?? 'fullstack'} outdir=${dist} plugins=${config.plugins?.length ?? 0}`
   );
   const updateStatus = (message: string): void => {
-    process.stdout.write(`\r${statusSuccess(message)}${" ".repeat(24)}`);
+    process.stdout.write(`\r${statusSuccess(message)}${' '.repeat(24)}`);
   };
   const updatePending = (message: string): void => {
-    process.stdout.write(`\r${statusPending(message)}${" ".repeat(24)}`);
+    process.stdout.write(`\r${statusPending(message)}${' '.repeat(24)}`);
   };
   const endStatusLine = (): void => {
-    process.stdout.write("\n");
+    process.stdout.write('\n');
   };
 
-  console.log(`\n${brandTitle("build")}\n`);
-  console.log(sectionTitle("Pipeline", "build"));
-  console.log(`  ${hint("Mode:", config.mode ?? "fullstack")}`);
-  console.log(`  ${hint("Outdir:", dist)}`);
-  console.log(`  ${hint("Plugins:", String(config.plugins?.length ?? 0))}`);
+  console.log(`\n${brandTitle('build')}\n`);
+  console.log(sectionTitle('Pipeline', 'build'));
+  console.log(`  ${hint('Mode:', config.mode ?? 'fullstack')}`);
+  console.log(`  ${hint('Outdir:', dist)}`);
+  console.log(`  ${hint('Plugins:', String(config.plugins?.length ?? 0))}`);
   console.log(divider());
 
   // Auto-lint with oxlint before build
-  updatePending("Linting with oxlint...");
-  const oxlintBin = existsSync("node_modules/.bin/oxlint") ? "node_modules/.bin/oxlint" : "oxlint";
-  const hasOxlintConfig = existsSync(".oxlintrc.json");
+  updatePending('Linting with oxlint...');
+  const oxlintBin = existsSync('node_modules/.bin/oxlint')
+    ? 'node_modules/.bin/oxlint'
+    : 'oxlint';
+  const hasOxlintConfig = existsSync('.oxlintrc.json');
   const lintResult = hasOxlintConfig
     ? await $`${oxlintBin} --config .oxlintrc.json .`.nothrow().quiet()
     : await $`${oxlintBin} .`.nothrow().quiet();
 
   if (lintResult.exitCode !== 0) {
-    process.stdout.write(`\r${statusError("Linting failed")}${" ".repeat(24)}\n`);
+    process.stdout.write(
+      `\r${statusError('Linting failed')}${' '.repeat(24)}\n`
+    );
     console.log(lintResult.stdout.toString());
     process.exit(1);
   }
-  updateStatus("Linting passed");
-  debugLog("build", "oxlint passed");
+  updateStatus('Linting passed');
+  debugLog('build', 'oxlint passed');
 
   await $`rm -rf ${dist}`;
   await $`mkdir -p ${dist}/client`;
 
   // Register Bun plugins declared by manic plugins
-  const bunPlugins: import("bun").BunPlugin[] = [];
+  const bunPlugins: import('bun').BunPlugin[] = [];
   for (const plugin of config.plugins ?? []) {
     if (plugin.preload) {
       const mod = await import(plugin.preload);
       // Support default export or named `plugin` export that is a BunPlugin
       const bunPlugin = mod.default ?? mod.plugin;
-      if (bunPlugin && typeof bunPlugin === "object" && bunPlugin.name) {
+      if (bunPlugin && typeof bunPlugin === 'object' && bunPlugin.name) {
         Bun.plugin(bunPlugin);
         bunPlugins.push(bunPlugin);
-        debugLog("build", `registered bun preload plugin ${bunPlugin.name}`);
+        debugLog('build', `registered bun preload plugin ${bunPlugin.name}`);
       }
     }
   }
 
-  updatePending("Bundling client...");
+  updatePending('Bundling client...');
 
-  await writeRoutesManifest("app/~routes.generated.ts");
+  await writeRoutesManifest('app/~routes.generated.ts');
 
-  const mainEntry = resolver.sync(process.cwd(), "./app/main");
+  const mainEntry = resolver.sync(process.cwd(), './app/main');
   if (!mainEntry.path) {
     console.error(red("\n✗ Core entry 'app/main.tsx' not found.\n"));
     process.exit(1);
@@ -205,39 +216,39 @@ export async function build() {
   const clientBuild = await Bun.build({
     entrypoints: [mainEntry.path],
     outdir: `${dist}/client`,
-    target: "browser",
+    target: 'browser',
     naming: {
-      entry: "[name]-[hash].[ext]",
-      chunk: "chunks/[name]-[hash].[ext]",
-      asset: "assets/[name]-[hash].[ext]",
+      entry: '[name]-[hash].[ext]',
+      chunk: 'chunks/[name]-[hash].[ext]',
+      asset: 'assets/[name]-[hash].[ext]',
     },
     define: {
-      "process.env.NODE_ENV": JSON.stringify("production"),
+      'process.env.NODE_ENV': JSON.stringify('production'),
     },
     plugins: [oxcPlugin(), bunPluginTailwind],
   });
 
-  updateStatus("Bundling client... done");
-  debugLog("build", `client outputs=${clientBuild.outputs.length}`);
+  updateStatus('Bundling client... done');
+  debugLog('build', `client outputs=${clientBuild.outputs.length}`);
 
   if (!clientBuild.success) {
     endStatusLine();
-    console.log(statusError("Client build failed"));
-    clientBuild.logs.forEach((l) => console.error(l));
+    console.log(statusError('Client build failed'));
+    clientBuild.logs.forEach(l => console.error(l));
     process.exit(1);
   }
 
-  const jsEntry = clientBuild.outputs.find((o) => o.kind === "entry-point");
-  const cssOutput = clientBuild.outputs.find((o) => o.path.endsWith(".css"));
-  const jsFile = jsEntry?.path.split("/").pop() ?? "main.js";
-  const cssFile = cssOutput?.path.split("/").pop();
+  const jsEntry = clientBuild.outputs.find(o => o.kind === 'entry-point');
+  const cssOutput = clientBuild.outputs.find(o => o.path.endsWith('.css'));
+  const jsFile = jsEntry?.path.split('/').pop() ?? 'main.js';
+  const cssFile = cssOutput?.path.split('/').pop();
 
-  if (existsSync("assets")) {
+  if (existsSync('assets')) {
     await $`cp -r assets ${dist}/client/assets`;
   }
 
-  let html = "";
-  const htmlPath = "app/index.html";
+  let html = '';
+  const htmlPath = 'app/index.html';
 
   if (await Bun.file(htmlPath).exists()) {
     html = await Bun.file(htmlPath).text();
@@ -246,7 +257,10 @@ export async function build() {
       if (html.includes('href="tailwindcss"')) {
         html = html.replace('href="tailwindcss"', `href="/${cssFile}"`);
       } else {
-        html = html.replace("</head>", `  <link rel="stylesheet" href="/${cssFile}">\n</head>`);
+        html = html.replace(
+          '</head>',
+          `  <link rel="stylesheet" href="/${cssFile}">\n</head>`
+        );
       }
     }
 
@@ -255,7 +269,10 @@ export async function build() {
     } else if (html.includes('src="/main.tsx"')) {
       html = html.replace('src="/main.tsx"', `src="/${jsFile}"`);
     } else {
-      html = html.replace("</body>", `  <script type="module" src="/${jsFile}"></script>\n</body>`);
+      html = html.replace(
+        '</body>',
+        `  <script type="module" src="/${jsFile}"></script>\n</body>`
+      );
     }
   } else {
     html = `<!DOCTYPE html>
@@ -263,8 +280,8 @@ export async function build() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${config.app?.name ?? "Manic"}</title>
-  ${cssFile ? `<link rel="stylesheet" href="/${cssFile}">` : ""}
+  <title>${config.app?.name ?? 'Manic'}</title>
+  ${cssFile ? `<link rel="stylesheet" href="/${cssFile}">` : ''}
 </head>
 <body>
   <div id="root"></div>
@@ -277,10 +294,10 @@ export async function build() {
 
   // Run build plugins
   if (config.plugins?.length) {
-    const pageRoutes = (await discoverRoutes()).map((r) => ({
+    const pageRoutes = (await discoverRoutes()).map(r => ({
       path: r.path,
       filePath: r.filePath,
-      dynamic: r.path.includes(":"),
+      dynamic: r.path.includes(':'),
     }));
     const htmlInjections: string[] = [];
     for (const plugin of config.plugins) {
@@ -292,9 +309,12 @@ export async function build() {
           prod: true,
           cwd: process.cwd(),
           dist,
-          async emitClientFile(relativePath: string, content: string | Uint8Array) {
+          async emitClientFile(
+            relativePath: string,
+            content: string | Uint8Array
+          ) {
             const outputPath = `${dist}/client/${relativePath}`;
-            const dir = outputPath.split("/").slice(0, -1).join("/");
+            const dir = outputPath.split('/').slice(0, -1).join('/');
             if (dir && !existsSync(dir)) {
               await $`mkdir -p ${dir}`;
             }
@@ -308,61 +328,70 @@ export async function build() {
       }
     }
     if (htmlInjections.length) {
-      html = html.replace("</head>", `${htmlInjections.join("\n")}\n</head>`);
+      html = html.replace('</head>', `${htmlInjections.join('\n')}\n</head>`);
       await Bun.write(`${dist}/client/index.html`, html);
     }
   }
 
-  const apiDir = "app/api";
+  const apiDir = 'app/api';
   const apiEntries: string[] = [];
-  if (config.mode !== "frontend" && existsSync(apiDir)) {
-    updatePending("Bundling API routes...");
-    const glob = new Bun.Glob("**/index.ts");
+  if (config.mode !== 'frontend' && existsSync(apiDir)) {
+    updatePending('Bundling API routes...');
+    const glob = new Bun.Glob('**/index.ts');
     for await (const file of glob.scan({ cwd: apiDir })) {
       apiEntries.push(`${apiDir}/${file}`);
     }
 
     if (apiEntries.length > 0) {
-      debugLog("build", `api entries discovered=${apiEntries.length}`);
+      debugLog('build', `api entries discovered=${apiEntries.length}`);
       await $`mkdir -p ${dist}/api`;
       for (const entry of apiEntries) {
         const outName = entry
-          .replace("app/api/", "")
-          .replace("/index.ts", "")
-          .replace("index.ts", "root");
+          .replace('app/api/', '')
+          .replace('/index.ts', '')
+          .replace('index.ts', 'root');
 
         await Bun.build({
           entrypoints: [entry],
           outdir: `${dist}/api`,
-          target: "bun",
+          target: 'bun',
           minify: false,
-          external: Object.keys((await import(`${process.cwd()}/package.json`)).dependencies ?? {}),
+          external: Object.keys(
+            (await import(`${process.cwd()}/package.json`)).dependencies ?? {}
+          ),
           naming: `${outName}.js`,
           plugins: [oxcPlugin()],
         });
       }
 
-      updateStatus("Bundling API routes... done");
+      updateStatus('Bundling API routes... done');
 
       // Emit /.well-known/api-catalog (RFC 9727)
       const apiCatalog = {
         linkset: [
           {
-            anchor: "/api",
-            "service-desc": [{ href: "/openapi.json", type: "application/json" }],
+            anchor: '/api',
+            'service-desc': [
+              { href: '/openapi.json', type: 'application/json' },
+            ],
           },
         ],
       };
       await $`mkdir -p ${dist}/client/.well-known`;
-      await Bun.write(`${dist}/client/.well-known/api-catalog`, JSON.stringify(apiCatalog));
+      await Bun.write(
+        `${dist}/client/.well-known/api-catalog`,
+        JSON.stringify(apiCatalog)
+      );
     }
   }
 
-  updatePending("Bundling server...");
+  updatePending('Bundling server...');
 
-  const serverResolution = resolver.sync(process.cwd(), "./~manic");
+  const serverResolution = resolver.sync(process.cwd(), './~manic');
   if (!serverResolution.path) {
-    console.error(red(`\n✗ ~manic.ts not found. Create your server entry file.\n`));
+    console.error(
+      red(`\n✗ ~manic.ts not found. Create your server entry file.\n`)
+    );
     process.exit(1);
   }
   const serverEntry = serverResolution.path;
@@ -371,12 +400,12 @@ export async function build() {
 
   serverCode = serverCode.replace(
     /import\s+\w+\s+from\s+["']\.\/app\/index\.html["'];?/,
-    `const html = await Bun.file("${dist}/client/index.html").text();`,
+    `const html = await Bun.file("${dist}/client/index.html").text();`
   );
 
   serverCode = serverCode.replace(
     /createManicServer\s*\(\s*\{\s*html:\s*\w+/,
-    `createManicServer({ html`,
+    `createManicServer({ html`
   );
 
   const prodEntry = `${dist}/_entry.ts`;
@@ -385,13 +414,13 @@ export async function build() {
   const serverBuild = await Bun.build({
     entrypoints: [prodEntry],
     outdir: dist,
-    target: "bun",
+    target: 'bun',
     minify: false,
     define: {
-      "process.env.NODE_ENV": JSON.stringify("production"),
+      'process.env.NODE_ENV': JSON.stringify('production'),
     },
     naming: {
-      entry: "server.js",
+      entry: 'server.js',
     },
     plugins: [oxcPlugin()],
   });
@@ -399,67 +428,76 @@ export async function build() {
   await $`rm -f ${prodEntry}`;
 
   if (!serverBuild.success) {
-    console.error(red("\nServer build failed:"));
-    serverBuild.logs.forEach((l) => console.error(l));
+    console.error(red('\nServer build failed:'));
+    serverBuild.logs.forEach(l => console.error(l));
     process.exit(1);
   }
 
-  updateStatus("Bundling server... done");
-  debugLog("build", `server build success=${serverBuild.success}`);
+  updateStatus('Bundling server... done');
+  debugLog('build', `server build success=${serverBuild.success}`);
 
   // Minify all output in parallel (client + api + server)
-  updatePending("Minifying with oxc-minify...");
+  updatePending('Minifying with oxc-minify...');
   await Promise.all([
     minifyDir(`${dist}/client`),
     existsSync(`${dist}/api`) ? minifyDir(`${dist}/api`) : Promise.resolve(),
     minifyDir(dist), // catches server.js
   ]);
-  updateStatus("Minifying with oxc-minify... done");
-  updateStatus("All checks are done!");
+  updateStatus('Minifying with oxc-minify... done');
+  updateStatus('All checks are done!');
   endStatusLine();
-  console.log(dim("│"));
+  console.log(dim('│'));
 
   const buildTime = performance.now() - buildStart;
   const clientSize = await getDirSize(`${dist}/client`);
   const serverJsSize = statSync(`${dist}/server.js`).size;
-  const apiSize = existsSync(`${dist}/api`) ? await getDirSize(`${dist}/api`) : 0;
+  const apiSize = existsSync(`${dist}/api`)
+    ? await getDirSize(`${dist}/api`)
+    : 0;
   const serverSize = serverJsSize + apiSize;
   const totalSize = clientSize + serverSize;
   debugLog(
-    "build",
-    `bundle sizes client=${clientSize} server=${serverSize} total=${totalSize} bytes`,
+    'build',
+    `bundle sizes client=${clientSize} server=${serverSize} total=${totalSize} bytes`
   );
-  const pageCount = await countRoutes("app/routes", "**/*.tsx");
-  const apiCount = await countRoutes("app/api", "**/index.ts");
+  const pageCount = await countRoutes('app/routes', '**/*.tsx');
+  const apiCount = await countRoutes('app/api', '**/index.ts');
 
-  console.log(statusSuccess("Build completed successfully"));
-  console.log("");
-  console.log(sectionTitle("Production Bundle", "build"));
+  console.log(statusSuccess('Build completed successfully'));
+  console.log('');
+  console.log(sectionTitle('Production Bundle', 'build'));
   console.log(divider());
   console.log(
-    `${white("Server")}              ${formatSize(serverSize).padStart(10)} ${dim(
-      `(${apiCount} routes)`,
-    )}`,
+    `${white('Server')}              ${formatSize(serverSize).padStart(10)} ${dim(
+      `(${apiCount} routes)`
+    )}`
   );
   console.log(
-    `${white("Client")}              ${formatSize(clientSize).padStart(10)} ${dim(
-      `(${pageCount} routes)`,
-    )}`,
+    `${white('Client')}              ${formatSize(clientSize).padStart(10)} ${dim(
+      `(${pageCount} routes)`
+    )}`
   );
   console.log(divider());
-  console.log(bold(`${white("Total")}               ${formatSize(totalSize).padStart(10)}` + "\n"));
+  console.log(
+    bold(
+      `${white('Total')}               ${formatSize(totalSize).padStart(10)}` +
+        '\n'
+    )
+  );
 
   console.log(dim(`Built in ${formatTime(buildTime)}`));
   console.log(dim(`Output: ${dist}/`));
 
   // Generate provider files BEFORE server build (to avoid read-only filesystem issues)
   if (config.providers?.length) {
-    console.log("");
+    console.log('');
     for (const provider of config.providers) {
-      if (!provider || typeof provider.build !== "function") {
+      if (!provider || typeof provider.build !== 'function') {
         console.error(red(`\n✗ Invalid provider: ${JSON.stringify(provider)}`));
         console.error(
-          dim("  Make sure the provider is correctly imported from @manicjs/providers"),
+          dim(
+            '  Make sure the provider is correctly imported from @manicjs/providers'
+          )
         );
         continue;
       }
@@ -482,5 +520,5 @@ export async function build() {
     }
   }
 
-  console.log("");
+  console.log('');
 }

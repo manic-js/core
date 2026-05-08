@@ -7,14 +7,14 @@ import {
   Component,
   type ComponentType,
   type ErrorInfo,
-} from "react";
-import { flushSync } from "react-dom";
-import { NotFound } from "../../components/NotFound";
-import { ErrorOverlay } from "../../components/ErrorOverlay";
-import { ServerError } from "../../components/ServerError";
-import { RouterContext } from "./context";
-import { RouteRegistry } from "./matcher";
-import type { RouteDef } from "./types";
+} from 'react';
+import { flushSync } from 'react-dom';
+import { NotFound } from '../../components/NotFound';
+import { ErrorOverlay } from '../../components/ErrorOverlay';
+import { ServerError } from '../../components/ServerError';
+import { RouterContext } from './context';
+import { RouteRegistry } from './matcher';
+import type { RouteDef } from './types';
 
 type LazyLoader = () => Promise<{ default: ComponentType }>;
 
@@ -40,15 +40,16 @@ declare global {
 /** Hook to access URL search parameters reactively — updates on popstate */
 function useQueryParams(): URLSearchParams {
   const [params, setParams] = useState(() =>
-    typeof window !== "undefined"
+    typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search)
-      : new URLSearchParams(),
+      : new URLSearchParams()
   );
 
   useEffect(() => {
-    const update = (): void => setParams(new URLSearchParams(window.location.search));
-    window.addEventListener("popstate", update);
-    return () => window.removeEventListener("popstate", update);
+    const update = (): void =>
+      setParams(new URLSearchParams(window.location.search));
+    window.addEventListener('popstate', update);
+    return () => window.removeEventListener('popstate', update);
   }, []);
 
   return params;
@@ -70,7 +71,7 @@ if (import.meta.hot) {
 async function loadComponent(
   path: string,
   loader: LazyLoader,
-  signal?: AbortSignal,
+  signal?: AbortSignal
 ): Promise<ComponentType | null> {
   if (!componentCache.has(path)) {
     try {
@@ -87,13 +88,13 @@ async function loadComponent(
 
 /** Preload a route's component module — called on link hover for instant navigation. @see https://www.manicjs.tech/docs/api/router/preload-route#signature */
 export function preloadRoute(path: string): void {
-  if (typeof window === "undefined" || !window.__MANIC_ROUTES__) return;
+  if (typeof window === 'undefined' || !window.__MANIC_ROUTES__) return;
 
   const routes = window.__MANIC_ROUTES__;
 
   // Use registry to match the actual route loader
   const routeDefs = Object.entries(routes).map(([p, loader]) => ({
-    path: p || "/",
+    path: p || '/',
     component: null,
     loader,
   }));
@@ -103,7 +104,7 @@ export function preloadRoute(path: string): void {
   if (match) {
     const loader = routes[match.path];
     if (loader && !componentCache.has(match.path)) {
-      loader().then((mod) => componentCache.set(match.path, mod.default));
+      loader().then(mod => componentCache.set(match.path, mod.default));
     }
   }
 }
@@ -119,14 +120,14 @@ function isBenignTransitionAbort(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const message = error.message.toLowerCase();
   return (
-    error.name === "InvalidStateError" &&
-    message.includes("transition was aborted because of invalid state")
+    error.name === 'InvalidStateError' &&
+    message.includes('transition was aborted because of invalid state')
   );
 }
 
 /** Navigate to a path programmatically. @see https://www.manicjs.tech/docs/api/router/navigate#function-signature */
 export function navigate(to: string, options?: { replace?: boolean }): void {
-  if (typeof window !== "undefined" && window.__MANIC_NAVIGATE__) {
+  if (typeof window !== 'undefined' && window.__MANIC_NAVIGATE__) {
     window.__MANIC_NAVIGATE__(to, options);
   }
 }
@@ -134,7 +135,10 @@ export function navigate(to: string, options?: { replace?: boolean }): void {
 // Cache for custom error page components
 const errorPageCache = new Map<string, ComponentType>();
 
-async function loadErrorPage(key: string, loader: LazyLoader): Promise<ComponentType> {
+async function loadErrorPage(
+  key: string,
+  loader: LazyLoader
+): Promise<ComponentType> {
   if (!errorPageCache.has(key)) {
     const module = await loader();
     errorPageCache.set(key, module.default);
@@ -142,14 +146,18 @@ async function loadErrorPage(key: string, loader: LazyLoader): Promise<Component
   return errorPageCache.get(key)!;
 }
 
-function useErrorPage(key: string, loader?: LazyLoader, fallback?: ComponentType): ComponentType {
+function useErrorPage(
+  key: string,
+  loader?: LazyLoader,
+  fallback?: ComponentType
+): ComponentType {
   const [Component, setComponent] = useState<ComponentType>(
-    () => errorPageCache.get(key) ?? fallback ?? NotFound,
+    () => errorPageCache.get(key) ?? fallback ?? NotFound
   );
 
   useEffect(() => {
     if (loader && !errorPageCache.has(key)) {
-      loadErrorPage(key, loader).then((C) => setComponent(() => C));
+      loadErrorPage(key, loader).then(C => setComponent(() => C));
     }
   }, [key, loader]);
 
@@ -174,7 +182,7 @@ class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Router caught an error during render:");
+    console.error('Router caught an error during render:');
     console.error(error, errorInfo);
     this.props.onError(error);
   }
@@ -194,9 +202,11 @@ export function Router({
   routes?: Record<string, LazyLoader>;
 }): React.ReactElement {
   const [currentPath, setCurrentPath] = useState(
-    typeof window !== "undefined" ? window.location.pathname : "/",
+    typeof window !== 'undefined' ? window.location.pathname : '/'
   );
-  const [LoadedComponent, setLoadedComponent] = useState<ComponentType | null>(null);
+  const [LoadedComponent, setLoadedComponent] = useState<ComponentType | null>(
+    null
+  );
   const [routeParams, setRouteParams] = useState<Record<string, string>>({});
   const [errorDetails, setErrorDetails] = useState<Error | null>(null);
   const [resolvedDevRoutes, setResolvedDevRoutes] = useState<
@@ -204,60 +214,68 @@ export function Router({
   >(undefined);
   const isNavigating = useRef(false);
   const abortController = useRef<AbortController | null>(null);
-  const activeTransition = useRef<ReturnType<typeof document.startViewTransition> | null>(null);
+  const activeTransition = useRef<ReturnType<
+    typeof document.startViewTransition
+  > | null>(null);
 
   const rawRoutes: Record<string, LazyLoader> =
-    manualRoutes ?? (typeof window !== "undefined" ? (window.__MANIC_ROUTES__ ?? {}) : {});
+    manualRoutes ??
+    (typeof window !== 'undefined' ? (window.__MANIC_ROUTES__ ?? {}) : {});
 
-  const errorPages = typeof window !== "undefined" ? window.__MANIC_ERROR_PAGES__ : undefined;
+  const errorPages =
+    typeof window !== 'undefined' ? window.__MANIC_ERROR_PAGES__ : undefined;
 
   useEffect(() => {
-    if (process.env.NODE_ENV === "production") return;
+    if (process.env.NODE_ENV === 'production') return;
     Promise.all(
       Object.entries(rawRoutes).map(async ([p, loader]) => {
-        const normalized = p || "/";
+        const normalized = p || '/';
         // Extract file path from the loader function source
         const src = loader.toString();
         const match = src.match(/import\(["']([^"']+)["']\)/);
         const file = match
-          ? match[1].replace(/^\.\//, "app/")
+          ? match[1].replace(/^\.\//, 'app/')
           : (() => {
               const filePart =
-                normalized === "/"
-                  ? "index"
+                normalized === '/'
+                  ? 'index'
                   : normalized
-                      .replace(/^\//, "")
-                      .replace(/:\.\.\.([^/]+)/g, "[...$1]")
-                      .replace(/:([^/]+)/g, "[$1]");
+                      .replace(/^\//, '')
+                      .replace(/:\.\.\.([^/]+)/g, '[...$1]')
+                      .replace(/:([^/]+)/g, '[$1]');
               return `app/routes/${filePart}.tsx`;
             })();
-        let componentName = "";
+        let componentName = '';
         try {
-          componentName = (await loader()).default?.name ?? "";
+          componentName = (await loader()).default?.name ?? '';
         } catch {}
         return { path: normalized, file, componentName };
-      }),
+      })
     ).then(setResolvedDevRoutes);
   }, []);
 
-  const NotFoundPage = useErrorPage("notFound", errorPages?.notFound, NotFound);
+  const NotFoundPage = useErrorPage('notFound', errorPages?.notFound, NotFound);
   const ErrorPage = useErrorPage(
-    "error",
+    'error',
     errorPages?.error,
-    process.env.NODE_ENV === "production" ? ServerError : ErrorOverlay,
+    process.env.NODE_ENV === 'production' ? ServerError : ErrorOverlay
   );
 
   // Compile routes into a registry exactly once
   const registry = useMemo(() => {
     const defs = Object.entries(rawRoutes).map(([path, loader]) => ({
-      path: path || "/",
+      path: path || '/',
       component: null,
       loader,
     }));
     return new RouteRegistry(defs);
   }, [rawRoutes]);
 
-  const loadAndTransition = async (path: string, isPopState: boolean, replace: boolean = false) => {
+  const loadAndTransition = async (
+    path: string,
+    isPopState: boolean,
+    replace: boolean = false
+  ) => {
     if (abortController.current) {
       abortController.current.abort();
     }
@@ -267,8 +285,9 @@ export function Router({
     const match = registry.match(path);
     if (!match) {
       if (!isPopState) {
-        if (replace) window.history.replaceState({ scrollY: window.scrollY }, "", path);
-        else window.history.pushState({ scrollY: window.scrollY }, "", path);
+        if (replace)
+          window.history.replaceState({ scrollY: window.scrollY }, '', path);
+        else window.history.pushState({ scrollY: window.scrollY }, '', path);
       }
       setCurrentPath(path);
       setLoadedComponent(null);
@@ -287,11 +306,11 @@ export function Router({
         const updateState = () => {
           if (!isPopState) {
             // Save current scroll position before pushing
-            window.history.replaceState({ scrollY: window.scrollY }, "");
+            window.history.replaceState({ scrollY: window.scrollY }, '');
             if (replace) {
-              window.history.replaceState({ scrollY: 0 }, "", path);
+              window.history.replaceState({ scrollY: 0 }, '', path);
             } else {
-              window.history.pushState({ scrollY: 0 }, "", path);
+              window.history.pushState({ scrollY: 0 }, '', path);
             }
           }
 
@@ -303,7 +322,10 @@ export function Router({
           if (!isPopState && document.body) {
             // ensure we scroll to top on new navigation, leaving popstate intact
             window.scrollTo(0, 0);
-          } else if (isPopState && window.history.state?.scrollY !== undefined) {
+          } else if (
+            isPopState &&
+            window.history.state?.scrollY !== undefined
+          ) {
             window.scrollTo(0, window.history.state.scrollY);
           }
         };
@@ -323,20 +345,20 @@ export function Router({
             activeTransition.current = transition;
             // Some browsers reject transition promises for benign abort states.
             // Suppress only the known noisy InvalidStateError and keep others visible.
-            transition.ready.catch((err) => {
+            transition.ready.catch(err => {
               if (!isBenignTransitionAbort(err)) {
-                console.warn("[manic] view transition ready failed:", err);
+                console.warn('[manic] view transition ready failed:', err);
               }
             });
-            transition.updateCallbackDone.catch((err) => {
+            transition.updateCallbackDone.catch(err => {
               if (!isBenignTransitionAbort(err)) {
-                console.warn("[manic] view transition update failed:", err);
+                console.warn('[manic] view transition update failed:', err);
               }
             });
             transition.finished
-              .catch((err) => {
+              .catch(err => {
                 if (!isBenignTransitionAbort(err)) {
-                  console.warn("[manic] view transition finished failed:", err);
+                  console.warn('[manic] view transition finished failed:', err);
                 }
               })
               .finally(() => {
@@ -358,8 +380,8 @@ export function Router({
   };
 
   useEffect(() => {
-    if ("scrollRestoration" in window.history) {
-      window.history.scrollRestoration = "manual";
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
     }
 
     // Assign globally for <Link> and manual navigation
@@ -371,7 +393,7 @@ export function Router({
       loadAndTransition(window.location.pathname, true);
     };
 
-    window.addEventListener("popstate", handlePopState);
+    window.addEventListener('popstate', handlePopState);
 
     // Initial mount load
     if (componentCache.size === 0) {
@@ -379,7 +401,7 @@ export function Router({
     }
 
     return () => {
-      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener('popstate', handlePopState);
       delete window.__MANIC_NAVIGATE__;
     };
   }, [registry]);
@@ -388,7 +410,7 @@ export function Router({
     return createElement(
       RouterContext.Provider,
       { value: { path: currentPath, navigate, params: {} } },
-      createElement(ErrorPage as any, { error: errorDetails }),
+      createElement(ErrorPage as any, { error: errorDetails })
     );
   }
 
@@ -399,7 +421,7 @@ export function Router({
       return createElement(
         RouterContext.Provider,
         { value: { path: currentPath, navigate, params: {} } },
-        createElement(NotFoundPage, { routes: devRoutes, currentPath } as any),
+        createElement(NotFoundPage, { routes: devRoutes, currentPath } as any)
       );
     }
     // Show nothing while loading initial route (suspense-like)
@@ -413,9 +435,9 @@ export function Router({
       ErrorBoundary,
       {
         fallback: createElement(ErrorPage as any, { error: errorDetails }),
-        onError: (err) => setErrorDetails(err),
+        onError: err => setErrorDetails(err),
       },
-      createElement(LoadedComponent, null),
-    ),
+      createElement(LoadedComponent, null)
+    )
   );
 }

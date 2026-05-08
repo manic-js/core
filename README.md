@@ -57,19 +57,19 @@ bun dev
 
 ## Packages
 
-| Package | Description |
-| --- | --- |
-| [manicjs](https://www.npmjs.com/package/manicjs) | Core framework runtime and CLI |
-| [create-manic](https://www.npmjs.com/package/create-manic) | Project scaffolding CLI |
+| Package                                                                | Description                                   |
+| ---------------------------------------------------------------------- | --------------------------------------------- |
+| [manicjs](https://www.npmjs.com/package/manicjs)                       | Core framework runtime and CLI                |
+| [create-manic](https://www.npmjs.com/package/create-manic)             | Project scaffolding CLI                       |
 | [@manicjs/providers](https://www.npmjs.com/package/@manicjs/providers) | Deploy adapters (Vercel, Netlify, Cloudflare) |
-| [@manicjs/tui](https://www.npmjs.com/package/@manicjs/tui) | Shared terminal UI primitives |
-| [@manicjs/tailwind](https://www.npmjs.com/package/@manicjs/tailwind) | Tailwind CSS plugin |
-| [@manicjs/unocss](https://www.npmjs.com/package/@manicjs/unocss) | UnoCSS plugin |
-| [@manicjs/mdx](https://www.npmjs.com/package/@manicjs/mdx) | MDX support plugin |
-| [@manicjs/seo](https://www.npmjs.com/package/@manicjs/seo) | SEO metadata and robots plugin |
-| [@manicjs/sitemap](https://www.npmjs.com/package/@manicjs/sitemap) | Sitemap generation plugin |
-| [@manicjs/mcp](https://www.npmjs.com/package/@manicjs/mcp) | Model Context Protocol plugin |
-| [@manicjs/api-docs](https://www.npmjs.com/package/@manicjs/api-docs) | Scalar API docs plugin |
+| [@manicjs/tui](https://www.npmjs.com/package/@manicjs/tui)             | Shared terminal UI primitives                 |
+| [@manicjs/tailwind](https://www.npmjs.com/package/@manicjs/tailwind)   | Tailwind CSS plugin                           |
+| [@manicjs/unocss](https://www.npmjs.com/package/@manicjs/unocss)       | UnoCSS plugin                                 |
+| [@manicjs/mdx](https://www.npmjs.com/package/@manicjs/mdx)             | MDX support plugin                            |
+| [@manicjs/seo](https://www.npmjs.com/package/@manicjs/seo)             | SEO metadata and robots plugin                |
+| [@manicjs/sitemap](https://www.npmjs.com/package/@manicjs/sitemap)     | Sitemap generation plugin                     |
+| [@manicjs/mcp](https://www.npmjs.com/package/@manicjs/mcp)             | Model Context Protocol plugin                 |
+| [@manicjs/api-docs](https://www.npmjs.com/package/@manicjs/api-docs)   | Scalar API docs plugin                        |
 
 ## Requirements
 

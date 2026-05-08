@@ -4,13 +4,16 @@ import {
   type CSSProperties,
   type HTMLAttributes,
   type ReactElement,
-} from "react";
+} from 'react';
 
 /**
  * Props for ViewTransition components
  * @interface ViewTransitionProps
  */
-interface ViewTransitionProps extends Omit<HTMLAttributes<HTMLElement>, "style"> {
+interface ViewTransitionProps extends Omit<
+  HTMLAttributes<HTMLElement>,
+  'style'
+> {
   /** Unique name for the view transition (links with matching names across pages) */
   name: string;
   /** Child elements */
@@ -36,7 +39,7 @@ function createViewTransitionElement(tag: string) {
         className,
         style: { ...style, viewTransitionName: name },
       },
-      children,
+      children
     );
   };
 }
@@ -66,27 +69,27 @@ function createViewTransitionElement(tag: string) {
  * @see https://www.manicjs.tech/docs/framework/routing/view-transitions
  */
 export const ViewTransitions = {
-  div: createViewTransitionElement("div"),
-  span: createViewTransitionElement("span"),
-  main: createViewTransitionElement("main"),
-  section: createViewTransitionElement("section"),
-  article: createViewTransitionElement("article"),
-  header: createViewTransitionElement("header"),
-  footer: createViewTransitionElement("footer"),
-  nav: createViewTransitionElement("nav"),
-  aside: createViewTransitionElement("aside"),
-  h1: createViewTransitionElement("h1"),
-  h2: createViewTransitionElement("h2"),
-  h3: createViewTransitionElement("h3"),
-  p: createViewTransitionElement("p"),
-  img: createViewTransitionElement("img"),
-  button: createViewTransitionElement("button"),
-  a: createViewTransitionElement("a"),
-  ul: createViewTransitionElement("ul"),
-  li: createViewTransitionElement("li"),
+  div: createViewTransitionElement('div'),
+  span: createViewTransitionElement('span'),
+  main: createViewTransitionElement('main'),
+  section: createViewTransitionElement('section'),
+  article: createViewTransitionElement('article'),
+  header: createViewTransitionElement('header'),
+  footer: createViewTransitionElement('footer'),
+  nav: createViewTransitionElement('nav'),
+  aside: createViewTransitionElement('aside'),
+  h1: createViewTransitionElement('h1'),
+  h2: createViewTransitionElement('h2'),
+  h3: createViewTransitionElement('h3'),
+  p: createViewTransitionElement('p'),
+  img: createViewTransitionElement('img'),
+  button: createViewTransitionElement('button'),
+  a: createViewTransitionElement('a'),
+  ul: createViewTransitionElement('ul'),
+  li: createViewTransitionElement('li'),
 } as const;
 
 /** Programmatic navigation with optional transitions. @see https://www.manicjs.tech/docs/api/router/navigate#function-signature */
-export { navigate } from "../router/lib/Router";
+export { navigate } from '../router/lib/Router';
 /** Enable or disable View Transitions API. @see https://www.manicjs.tech/docs/api/transitions/set-view-transitions#signature */
-export { setViewTransitions } from "../router/lib/Router";
+export { setViewTransitions } from '../router/lib/Router';

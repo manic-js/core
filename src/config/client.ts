@@ -1,4 +1,4 @@
-import { hc } from "hono/client";
+import { hc } from 'hono/client';
 
 /**
  * Creates a type-safe RPC client for Manic API endpoints.
@@ -33,9 +33,9 @@ import { hc } from "hono/client";
  */
 
 export function createClient<T>(
-  baseUrl: string = typeof window !== "undefined"
+  baseUrl: string = typeof window !== 'undefined'
     ? window.location.origin
-    : "http://localhost:6070",
+    : 'http://localhost:6070'
 ) {
   return hc<T>(baseUrl);
 }
