@@ -40,5 +40,5 @@ jobs:
           elif bun run | grep -q "^ fmt$"; then
             bun run fmt --check
           else
-            bunx --bun oxfmt --check .
+            bunx --bun oxfmt --check --config .oxfmt.json .
           fi
