@@ -43,6 +43,7 @@ interface LinkProps {
  * @param props.prefetch - Preload route on hover
  * @param props.replace - Replace history entry
  * @returns React element
+ * @see https://www.manicjs.tech/docs/api/router/link#props
  *
  * @example
  * import { Link } from 'manicjs/router';

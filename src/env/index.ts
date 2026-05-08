@@ -27,6 +27,7 @@ let envLoaded = false;
  * @example
  * await loadEnvFiles();
  * // Loads .env and .env.local into process.env
+ * @see https://www.manicjs.tech/docs/api/env#environment-files
  */
 export async function loadEnvFiles(): Promise<void> {
   if (envLoaded) return;
@@ -77,6 +78,7 @@ export function getLoadedEnvKeys(): string[] {
 /**
  * Gets all public environment variables (those with MANIC_PUBLIC_ prefix)
  * @returns Object with public env vars
+ * @see https://www.manicjs.tech/docs/api/env/get-public-env#signature
  */
 export function getPublicEnv(): Record<string, string> {
   const publicEnv: Record<string, string> = {};

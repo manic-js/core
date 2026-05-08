@@ -55,6 +55,7 @@ function useQueryParams(): URLSearchParams {
   return params;
 }
 
+/** Query-param hook export. @see https://www.manicjs.tech/docs/api/router/use-query-params#hook-signature */
 export { useQueryParams };
 
 // Cache loaded components
@@ -85,7 +86,7 @@ async function loadComponent(
   return componentCache.get(path)!;
 }
 
-/** Preload a route's component module — called on link hover for instant navigation */
+/** Preload a route's component module — called on link hover for instant navigation. @see https://www.manicjs.tech/docs/api/router/preload-route#signature */
 export function preloadRoute(path: string): void {
   if (typeof window === 'undefined' || !window.__MANIC_ROUTES__) return;
 
@@ -110,7 +111,7 @@ export function preloadRoute(path: string): void {
 
 let viewTransitionsEnabled = true;
 
-/** Enable or disable View Transitions API for client-side navigation */
+/** Enable or disable View Transitions API for client-side navigation. @see https://www.manicjs.tech/docs/api/transitions/set-view-transitions#signature */
 export function setViewTransitions(enabled: boolean): void {
   viewTransitionsEnabled = enabled;
 }
@@ -124,7 +125,7 @@ function isBenignTransitionAbort(error: unknown): boolean {
   );
 }
 
-/** Navigate to a path programmatically */
+/** Navigate to a path programmatically. @see https://www.manicjs.tech/docs/api/router/navigate#function-signature */
 export function navigate(to: string, options?: { replace?: boolean }): void {
   if (typeof window !== 'undefined' && window.__MANIC_NAVIGATE__) {
     window.__MANIC_NAVIGATE__(to, options);
@@ -194,7 +195,7 @@ class ErrorBoundary extends Component<
   }
 }
 
-/** Client-side router with file-based routing, view transitions, and error boundaries */
+/** Client-side router with file-based routing, view transitions, and error boundaries. @see https://www.manicjs.tech/docs/api/router/router#behavior-framework-context */
 export function Router({
   routes: manualRoutes,
 }: {

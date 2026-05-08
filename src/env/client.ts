@@ -14,6 +14,7 @@ const PUBLIC_PREFIX = 'MANIC_PUBLIC_';
  *
  * @param key - Environment variable name
  * @returns Variable value or undefined
+ * @see https://www.manicjs.tech/docs/api/env/get-env#signature
  *
  * @example
  * // Get a public env var in browser
@@ -42,6 +43,7 @@ export function getEnv(key: string): string | undefined {
  * Gets all public environment variables (MANIC_PUBLIC_*).
  *
  * @returns Object containing all public env vars
+ * @see https://www.manicjs.tech/docs/api/env/get-public-env#signature
  *
  * @example
  * const env = getPublicEnv();

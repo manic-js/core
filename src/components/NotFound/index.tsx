@@ -27,6 +27,7 @@ function similarity(a: string, b: string): number {
   );
 }
 
+/** Dev-friendly fallback 404 shell with route hints. @see https://www.manicjs.tech/docs/api/errors/not-found#props */
 export function NotFound({
   routes,
   currentPath,
@@ -138,7 +139,7 @@ export function NotFound({
         >
           {routes ? (
             <a
-              href="https://github.com/Rahuletto/manic/wiki/Routing"
+              href="https://www.manicjs.tech/docs/framework/routing"
               target="_blank"
               rel="noopener noreferrer"
               style={{

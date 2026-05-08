@@ -3,6 +3,8 @@
  * @description Client-side routing for Manic SPA applications.
  * Provides file-based routing, dynamic imports, and View Transitions support.
  *
+ * @see https://www.manicjs.tech/docs/api/router#components
+ *
  * @example
  * // Basic usage in app/main.tsx
  * import { Router, Link } from 'manicjs/router';
@@ -22,6 +24,7 @@
  */
 
 export type { RouteDef, RouterContextValue } from './lib/types';
+/** @see https://www.manicjs.tech/docs/api/router/router#props */
 export {
   Router,
   useQueryParams,
@@ -29,5 +32,7 @@ export {
   setViewTransitions,
   preloadRoute,
 } from './lib/Router';
+/** @see https://www.manicjs.tech/docs/api/router/link#props */
 export { Link } from './lib/Link';
+/** @see https://www.manicjs.tech/docs/api/router/router-context#provided-value-routercontextvalue */
 export { RouterContext, useRouter } from './lib/context';

@@ -11,6 +11,7 @@ import { join, isAbsolute } from 'path';
  *
  * @param apiDir - Directory containing API routes (default: "app/api")
  * @returns Hono app, registered routes, and OpenAPI spec
+ * @see https://www.manicjs.tech/docs/api/plugin-loaders/api-loader-plugin#behavior
  *
  * @example
  * // Basic usage - loads from app/api

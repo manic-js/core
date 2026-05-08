@@ -28,6 +28,8 @@ import { join } from 'path';
  * @param options.envKeys - Environment variable keys to expose to client
  * @param options.startTime - Start time for performance measurement
  * @returns The Bun server instance
+ * @see https://www.manicjs.tech/docs/api/server/create-manic-server#options
+ * @see https://www.manicjs.tech/docs/core/server-runtime#high-level-branches
  *
  * @example
  * // Basic usage with ~manic.ts

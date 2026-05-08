@@ -20,6 +20,7 @@ const styles = {
   } as const,
 };
 
+/** Generic fatal error shell for runtime failures. @see https://www.manicjs.tech/docs/api/errors/server-error */
 export function ServerError() {
   const mono = "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace";
   return (

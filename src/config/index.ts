@@ -1,4 +1,4 @@
-/** Deployment provider interface (Vercel, Cloudflare, Netlify, etc.) */
+/** Deployment provider interface (Vercel, Cloudflare, Netlify, etc.). @see https://www.manicjs.tech/docs/core/providers-contract#interface */
 export interface ManicProvider {
   name: string;
   build(context: BuildContext): Promise<void>;
@@ -93,7 +93,7 @@ export interface ManicPlugin {
   build?(ctx: ManicBuildPluginContext): void | Promise<void>;
 }
 
-/** Main configuration object for a Manic application */
+/** Main configuration object for a Manic application. @see https://www.manicjs.tech/docs/api/config#top-level-options */
 export interface ManicConfig {
   /** Server mode — "fullstack" includes Hono API support, "frontend" is pure SPA @default "fullstack" */
   mode?: 'fullstack' | 'frontend';
@@ -172,7 +172,7 @@ const DEFAULT_CONFIG: ManicConfig = {
   },
 };
 
-/** Define a typed Manic configuration — use in manic.config.ts */
+/** Define a typed Manic configuration — use in manic.config.ts. @see https://www.manicjs.tech/docs/api/config/define-config#signature */
 export function defineConfig(config: ManicConfig): ManicConfig {
   return config;
 }
@@ -182,6 +182,9 @@ export function defineConfig(config: ManicConfig): ManicConfig {
  * provides a `staticFiles` shorthand — an array of { path, content } entries
  * that are automatically served as routes in dev and emitted as client files
  * in production, eliminating the repetitive dev/prod parity boilerplate.
+ *
+ * @see https://www.manicjs.tech/docs/api/config/plugins#createplugin
+ * @see https://www.manicjs.tech/docs/framework/advanced/plugin-development
  */
 export function createPlugin(options: {
   name: string;
@@ -234,7 +237,7 @@ export function createPlugin(options: {
 
 let cachedConfig: ManicConfig | null = null;
 
-/** Loads and merges the user's manic.config.ts with defaults */
+/** Loads and merges the user's manic.config.ts with defaults. @see https://www.manicjs.tech/docs/api/config/load-config#signature */
 export async function loadConfig(
   cwd: string = process.cwd()
 ): Promise<ManicConfig> {
@@ -274,7 +277,7 @@ export async function loadConfig(
   return cachedConfig;
 }
 
-/** Returns the cached config — call loadConfig() first */
+/** Returns the cached config — call loadConfig() first. @see https://www.manicjs.tech/docs/api/config/get-config#signature */
 export function getConfig(): ManicConfig {
   return cachedConfig || DEFAULT_CONFIG;
 }

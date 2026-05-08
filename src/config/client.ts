@@ -10,6 +10,7 @@ import { hc } from 'hono/client';
  * @template T - The API route type (cast from the API module)
  * @param baseUrl - Base URL for API requests (defaults to current origin or localhost)
  * @returns Typed Hono client for making API calls
+ * @see https://www.manicjs.tech/docs/api/client/create-client#signature
  *
  * @example
  * // Basic usage - call an API route

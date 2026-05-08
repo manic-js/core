@@ -74,6 +74,7 @@ function applyTheme(theme: Theme) {
  * @param props - Component props
  * @param props.children - Child components that need theme access
  * @returns React element with theme context
+ * @see https://www.manicjs.tech/docs/api/theme/theme-provider#behavior
  *
  * @example
  * import { ThemeProvider } from 'manicjs/theme';
@@ -127,6 +128,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   return createElement(ThemeContext.Provider, { value }, children);
 }
 
+/** Access theme state and helpers from ThemeProvider. @see https://www.manicjs.tech/docs/api/theme/use-theme#signature */
 export function useTheme(): ThemeContextValue {
   const context = useContext(ThemeContext);
   if (!context) {
@@ -141,6 +143,7 @@ export interface ThemeToggleProps {
   children?: ReactNode | ((theme: 'light' | 'dark') => ReactNode);
 }
 
+/** Accessible light/dark toggle button. @see https://www.manicjs.tech/docs/api/theme/theme-toggle#props-themetoggleprops */
 export function ThemeToggle({ className, style, children }: ThemeToggleProps) {
   const { toggle, isDark, resolvedTheme } = useTheme();
 
@@ -159,6 +162,7 @@ export function ThemeToggle({ className, style, children }: ThemeToggleProps) {
   );
 }
 
+/** Initialize persisted theme before first paint. @see https://www.manicjs.tech/docs/api/theme/init-theme#when-it-runs-today */
 export function initTheme() {
   if (typeof window === 'undefined') return;
   applyTheme(getStoredTheme());

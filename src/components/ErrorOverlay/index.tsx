@@ -222,6 +222,7 @@ const TOKEN_COLORS: Record<string, string> = {
 
 // ── Component ────────────────────────────────────────────────
 
+/** Development error UI with stack/source preview. @see https://www.manicjs.tech/docs/api/errors/error-overlay */
 export function ErrorOverlay({ error }: { error?: Error }) {
   const [frame, setFrame] = useState<SourceFrame | null>(null);
   const [copied, setCopied] = useState(false);

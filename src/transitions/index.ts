@@ -64,6 +64,9 @@ function createViewTransitionElement(tag: string) {
  *
  * @example
  * // Supported tags: div, span, main, section, article, header, footer, nav, aside, h1-h3, p, img, button, a, ul, li
+ *
+ * @see https://www.manicjs.tech/docs/api/transitions/view-transitions#props
+ * @see https://www.manicjs.tech/docs/framework/routing/view-transitions
  */
 export const ViewTransitions = {
   div: createViewTransitionElement('div'),
@@ -86,4 +89,5 @@ export const ViewTransitions = {
   li: createViewTransitionElement('li'),
 } as const;
 
+/** Programmatic navigation with optional transitions. @see https://www.manicjs.tech/docs/api/router/navigate#function-signature */
 export { navigate, setViewTransitions } from '../router/lib/Router';
