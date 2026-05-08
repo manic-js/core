@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Lint
+        shell: bash
+        run: |
+          if bun run | grep -q "^ lint$"; then
+            bun run lint
+          elif bun run | grep -q "^ check$"; then
+            bun run check
+          else
+            bunx --bun oxlint .
+          fi
+
+      - name: Format check
+        shell: bash
+        run: |
+          if bun run | grep -q "^ fmt:check$"; then
+            bun run fmt:check
+          elif bun run | grep -q "^ format:check$"; then
+            bun run format:check
+          elif bun run | grep -q "^ fmt$"; then
+            bun run fmt --check
+          else
+            bunx --bun oxfmt --check .
+          fi
