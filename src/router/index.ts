@@ -25,14 +25,18 @@
 
 export type { RouteDef, RouterContextValue } from './lib/types';
 /** @see https://www.manicjs.tech/docs/api/router/router#props */
-export {
-  Router,
-  useQueryParams,
-  navigate,
-  setViewTransitions,
-  preloadRoute,
-} from './lib/Router';
+export { Router } from './lib/Router';
+/** @see https://www.manicjs.tech/docs/api/router/use-query-params#hook-signature */
+export { useQueryParams } from './lib/Router';
+/** @see https://www.manicjs.tech/docs/api/router/navigate#function-signature */
+export { navigate } from './lib/Router';
+/** @see https://www.manicjs.tech/docs/api/transitions/set-view-transitions#signature */
+export { setViewTransitions } from './lib/Router';
+/** @see https://www.manicjs.tech/docs/api/router/preload-route#signature */
+export { preloadRoute } from './lib/Router';
 /** @see https://www.manicjs.tech/docs/api/router/link#props */
 export { Link } from './lib/Link';
 /** @see https://www.manicjs.tech/docs/api/router/router-context#provided-value-routercontextvalue */
-export { RouterContext, useRouter } from './lib/context';
+export { RouterContext } from './lib/context';
+/** @see https://www.manicjs.tech/docs/api/router/use-router#hook-signature */
+export { useRouter } from './lib/context';

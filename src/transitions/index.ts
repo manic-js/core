@@ -90,4 +90,6 @@ export const ViewTransitions = {
 } as const;
 
 /** Programmatic navigation with optional transitions. @see https://www.manicjs.tech/docs/api/router/navigate#function-signature */
-export { navigate, setViewTransitions } from '../router/lib/Router';
+export { navigate } from '../router/lib/Router';
+/** Enable or disable View Transitions API. @see https://www.manicjs.tech/docs/api/transitions/set-view-transitions#signature */
+export { setViewTransitions } from '../router/lib/Router';
