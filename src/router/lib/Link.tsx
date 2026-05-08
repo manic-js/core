@@ -1,11 +1,6 @@
-import {
-  createElement,
-  type MouseEvent,
-  type ReactNode,
-  type CSSProperties,
-} from 'react';
-import { useRouter } from './context';
-import { navigate, preloadRoute } from './Router';
+import { createElement, type MouseEvent, type ReactNode, type CSSProperties } from "react";
+import { useRouter } from "./context";
+import { navigate, preloadRoute } from "./Router";
 
 /**
  * Props for the Link component
@@ -85,7 +80,7 @@ export function Link({
     : style || {};
 
   return createElement(
-    'a',
+    "a",
     {
       href: to,
       className,
@@ -94,6 +89,6 @@ export function Link({
       onMouseEnter: handlePreload,
       onFocus: handlePreload,
     },
-    children
+    children,
   );
 }

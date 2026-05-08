@@ -1,4 +1,4 @@
-import { spawn } from 'bun';
+import { spawn } from "bun";
 import {
   brandTitle,
   dim,
@@ -7,7 +7,7 @@ import {
   statusError,
   statusPending,
   statusSuccess,
-} from '@manicjs/tui';
+} from "@manicjs/tui";
 
 /**
  * Runs oxlint to check code quality and enforce linting rules.
@@ -23,26 +23,23 @@ import {
  * // manic lint
  */
 export async function lint(): Promise<void> {
-  console.log(`\n${brandTitle('lint')}`);
+  console.log(`\n${brandTitle("lint")}`);
   console.log(divider());
-  console.log(sectionTitle('Lint Session', 'build'));
-  console.log(`  ${dim('Engine:')} oxlint`);
+  console.log(sectionTitle("Lint Session", "build"));
+  console.log(`  ${dim("Engine:")} oxlint`);
   console.log(divider());
-  console.log(statusPending('Running oxlint...'));
+  console.log(statusPending("Running oxlint..."));
 
-  const proc = spawn(
-    ['bun', 'x', 'oxlint', '--config', '.oxlintrc.json', '.'],
-    {
-      stdout: 'inherit',
-      stderr: 'inherit',
-      stdin: 'inherit',
-    }
-  );
+  const proc = spawn(["bun", "x", "oxlint", "--config", ".oxlintrc.json", "."], {
+    stdout: "inherit",
+    stderr: "inherit",
+    stdin: "inherit",
+  });
 
   const exitCode = await proc.exited;
   if (exitCode !== 0) {
     console.log(statusError(`Lint failed (exit ${exitCode})`));
     process.exit(exitCode);
   }
-  console.log(statusSuccess('Lint passed'));
+  console.log(statusSuccess("Lint passed"));
 }

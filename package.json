@@ -10,6 +10,10 @@
     "hono",
     "react"
   ],
+  "homepage": "https://github.com/manic-js/manic#readme",
+  "bugs": {
+    "url": "https://github.com/manic-js/manic/issues"
+  },
   "license": "GPL-3.0",
   "author": "Rahuletto",
   "repository": {
@@ -96,9 +100,5 @@
   },
   "engines": {
     "bun": ">=1.0.0"
-  },
-  "homepage": "https://github.com/manic-js/manic#readme",
-  "bugs": {
-    "url": "https://github.com/manic-js/manic/issues"
   }
 }

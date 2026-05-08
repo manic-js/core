@@ -6,7 +6,7 @@ declare global {
 }
 
 /** Prefix for environment variables exposed to the client */
-const PUBLIC_PREFIX = 'MANIC_PUBLIC_';
+const PUBLIC_PREFIX = "MANIC_PUBLIC_";
 
 /**
  * Gets an environment variable value.
@@ -25,14 +25,12 @@ const PUBLIC_PREFIX = 'MANIC_PUBLIC_';
  * const secret = getEnv('API_SECRET');
  */
 export function getEnv(key: string): string | undefined {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     return process.env[key];
   }
 
   if (!key.startsWith(PUBLIC_PREFIX)) {
-    console.warn(
-      `[Manic] Cannot access non-public env var "${key}" on client-side`
-    );
+    console.warn(`[Manic] Cannot access non-public env var "${key}" on client-side`);
     return undefined;
   }
 
@@ -50,7 +48,7 @@ export function getEnv(key: string): string | undefined {
  * // Returns { MANIC_PUBLIC_API_URL: "https://api.example.com", ... }
  */
 export function getPublicEnv(): Record<string, string> {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     const publicEnv: Record<string, string> = {};
     for (const [key, value] of Object.entries(process.env)) {
       if (key.startsWith(PUBLIC_PREFIX) && value !== undefined) {
