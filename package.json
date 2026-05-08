@@ -74,7 +74,7 @@
   },
   "scripts": {},
   "dependencies": {
-    "@manicjs/tui": "1.0.1",
+    "@manicjs/tui": "1.0.2",
     "bun-plugin-tailwind": "^0.1.2",
     "hono": "^4.7.0",
     "kill-port": "^2.0.1",
