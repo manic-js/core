@@ -5,7 +5,7 @@
     "": {
       "name": "manicjs",
       "dependencies": {
-        "@manicjs/tui": "^1.0.2",
+        "@manicjs/tui": "1.0.1",
         "bun-plugin-tailwind": "^0.1.2",
         "hono": "^4.7.0",
         "kill-port": "^2.0.1",
@@ -24,6 +24,7 @@
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
         "react-refresh": "^0.18.0",
+        "simple-git-hooks": "^2.13.1",
         "typescript": "^5.0.0",
       },
       "peerDependencies": {
@@ -39,7 +40,7 @@
 
     "@emnapi/wasi-threads": ["@emnapi/wasi-threads@1.2.1", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-uTII7OYF+/Mes/MrcIOYp5yOtSMLBWSIoLPpcgwipoiKbli6k322tcoFsxoIIxPDqW01SQGAgko4EzZi2BNv2w=="],
 
-    "@manicjs/tui": ["@manicjs/tui@1.0.2", "", {}, "sha512-IdlR5r7+LLdy8/i7oU+wtZ8jlepr/tZbCwdlsbWUS/PYbjP2C7HIVkztNZfD8rMPOsPOQUA4oR6Oy/hsJd58YQ=="],
+    "@manicjs/tui": ["@manicjs/tui@1.0.1", "", {}, "sha512-53p/5trYriuiEziTBYMISzrgM30bz+YYaJ16O/tBdwwhiV1m+uoVLIOiqF+7ZXB2TYEJLxl/AIbf8gVnh7N6Hg=="],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.1.4", "", { "dependencies": { "@tybys/wasm-util": "^0.10.1" }, "peerDependencies": { "@emnapi/core": "^1.7.1", "@emnapi/runtime": "^1.7.1" } }, "sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow=="],
 
@@ -502,6 +503,8 @@
     "shell-exec": ["shell-exec@1.0.2", "", {}, "sha512-jyVd+kU2X+mWKMmGhx4fpWbPsjvD53k9ivqetutVW/BQ+WIZoDoP4d8vUMGezV6saZsiNoW2f9GIhg9Dondohg=="],
 
     "shiki": ["shiki@4.0.2", "", { "dependencies": { "@shikijs/core": "4.0.2", "@shikijs/engine-javascript": "4.0.2", "@shikijs/engine-oniguruma": "4.0.2", "@shikijs/langs": "4.0.2", "@shikijs/themes": "4.0.2", "@shikijs/types": "4.0.2", "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4" } }, "sha512-eAVKTMedR5ckPo4xne/PjYQYrU3qx78gtJZ+sHlXEg5IHhhoQhMfZVzetTYuaJS0L2Ef3AcCRzCHV8T0WI6nIQ=="],
+
+    "simple-git-hooks": ["simple-git-hooks@2.13.1", "", { "bin": { "simple-git-hooks": "cli.js" } }, "sha512-WszCLXwT4h2k1ufIXAgsbiTOazqqevFCIncOuUBZJ91DdvWcC5+OFkluWRQPrcuSYd8fjq+o2y1QfWqYMoAToQ=="],
 
     "source-map": ["source-map@0.7.6", "", {}, "sha512-i5uvt8C3ikiWeNZSVZNWcfZPItFQOsYTUAOkcUPGd8DqDy1uOUikjt5dG+uRlwyvR108Fb9DOd4GvXfT0N2/uQ=="],
 

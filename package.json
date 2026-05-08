@@ -92,6 +92,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-refresh": "^0.18.0",
+    "simple-git-hooks": "^2.13.1",
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
@@ -100,5 +101,11 @@
   },
   "engines": {
     "bun": ">=1.0.0"
+  },
+  "scripts": {
+    "prepare": "simple-git-hooks"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "bunx --bun oxlint . && bunx --bun oxfmt --check --config .oxfmt.json ."
   }
 }
