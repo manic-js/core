@@ -1,18 +1,22 @@
-<img src="https://github.com/rahuletto/manic/blob/main/demo/assets/wordmark.svg?raw=1" alt="Manic" width="300" />
+<img src="https://raw.githubusercontent.com/Rahuletto/manic/main/demo/assets/wordmark.svg" alt="Manic" width="300" />
 
 [![npm version](https://img.shields.io/npm/v/manicjs?logo=npm)](https://www.npmjs.com/package/manicjs)
 [![Bun](https://img.shields.io/badge/runtime-Bun-black?logo=bun)](https://bun.sh)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](https://opensource.org/licenses/GPL-3.0)
 
-Manic is a high-performance React framework built exclusively for Bun.
-
-It ships with a custom build pipeline, first-class plugin architecture, and production-ready DX for local development, deployment, and AI-native workflows.
+**Manic** is a production React **framework** built exclusively on **Bun**: file-based routing, colocated APIs, a custom OXC-powered client/server build pipeline, and first-class plugins. This repository ships **`manicjs`**—the **framework core** that every first-party package is built around.
 
 ## About this package
 
-**`manicjs`** is the Manic core: the **`manic`** CLI, runtime, file-based router, and Hono-based server integration for Bun and React. Source and issues: **[github.com/manic-js/core](https://github.com/manic-js/core)**.
+**`manicjs`** is the engine the rest of the ecosystem plugs into: the **`manic`** CLI, config and plugin loading, dev and production **build orchestration**, the **file-based router**, and the **Hono**-based SSR server. Tooling such as **`@manicjs/bundler`**, **`@manicjs/providers`**, **`create-manic`**, and the official **`@manicjs/*`** plugins are separate npm packages; **`manicjs`** coordinates them when you author an app or extend the framework.
 
-The **[Rahuletto/manic](https://github.com/Rahuletto/manic)** repo is an optional coordinator workspace for maintainers who want every `manic-js/*` package and the demo in one tree (`./setup.sh`). You do not need it to install **`manicjs`** from npm or to build an app with **Quick Start** below.
+Source and issues: **[github.com/manic-js/core](https://github.com/manic-js/core)**.
+
+The **[Rahuletto/manic](https://github.com/Rahuletto/manic)** repo is an optional coordinator workspace for maintainers who want every `manic-js/*` package and the demo in one tree (`./setup.sh`). You do not need it to install **`manicjs`** from npm or to follow **Quick Start** below.
+
+## Benchmarks
+
+Methodology and comparative results for dev startup, production builds, and bundle size live in the docs: **[Framework benchmarks](https://www.manicjs.tech/docs/framework/benchmarks)**.
 
 ## Documentation
 
