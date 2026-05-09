@@ -103,8 +103,8 @@ async function resolveFrame(loc: ParsedFrame): Promise<SourceFrame | null> {
           const mapUrl = new URL(externalMapMatch[1], loc.file).toString();
           const mapRes = await fetch(mapUrl);
           if (mapRes.ok) mapContent = await mapRes.json();
-        } catch (e) {
-          console.warn('[Manic] External map fetch failed', e);
+        } catch (error) {
+          console.warn('[Manic] External map fetch failed', error);
         }
       }
     }

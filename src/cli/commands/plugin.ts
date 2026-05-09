@@ -226,7 +226,7 @@ export async function plugin(args: string[]): Promise<void> {
 
   if (action === 'list') {
     const plugins = parsePluginList(config);
-    if (!plugins.length) {
+    if (plugins.length === 0) {
       console.log(
         eventLine('plugin', 'no plugins configured in manic.config.*', 'warn')
       );

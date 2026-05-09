@@ -74,6 +74,8 @@
   },
   "scripts": {
     "validate": "bunx --bun oxlint --config .oxlintrc.json src && bunx --bun oxfmt --check --config .oxfmt.json src",
+    "test:cli": "bun test ./tests/cli/cli-commands.test.ts",
+    "test:e2e": "bun test ./tests/integration/demo-workflow.test.ts",
     "test:framework": "cd ../../demo && bun run build"
   },
   "dependencies": {

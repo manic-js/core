@@ -149,17 +149,17 @@ function useErrorPage(
   loader?: LazyLoader,
   fallback?: ComponentType
 ): ComponentType {
-  const [errorComponent] = useState<ComponentType>(
+  const [ResolvedComponent, setResolvedComponent] = useState<ComponentType>(
     () => errorPageCache.get(key) ?? fallback ?? NotFound
   );
 
   useEffect(() => {
     if (loader && !errorPageCache.has(key)) {
-      loadErrorPage(key, loader).then(C => setComponent(() => C));
+      loadErrorPage(key, loader).then(C => setResolvedComponent(() => C));
     }
   }, [key, loader]);
 
-  return errorComponent;
+  return ResolvedComponent;
 }
 
 class ErrorBoundary extends React.Component<
