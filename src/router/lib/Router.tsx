@@ -4,7 +4,6 @@ import {
   useState,
   useRef,
   useMemo,
-  Component,
   type ComponentType,
   type ErrorInfo,
 } from 'react';
@@ -14,7 +13,6 @@ import { ErrorOverlay } from '../../components/ErrorOverlay';
 import { ServerError } from '../../components/ServerError';
 import { RouterContext } from './context';
 import { RouteRegistry } from './matcher';
-import type { RouteDef } from './types';
 
 type LazyLoader = () => Promise<{ default: ComponentType }>;
 
@@ -151,7 +149,7 @@ function useErrorPage(
   loader?: LazyLoader,
   fallback?: ComponentType
 ): ComponentType {
-  const [Component, setComponent] = useState<ComponentType>(
+  const [errorComponent] = useState<ComponentType>(
     () => errorPageCache.get(key) ?? fallback ?? NotFound
   );
 
@@ -161,10 +159,10 @@ function useErrorPage(
     }
   }, [key, loader]);
 
-  return Component;
+  return errorComponent;
 }
 
-class ErrorBoundary extends Component<
+class ErrorBoundary extends React.Component<
   {
     fallback: React.ReactNode;
     children: React.ReactNode;

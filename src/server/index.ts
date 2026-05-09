@@ -10,7 +10,9 @@ import { join } from 'path';
 
 function resolveRuntimePort(configuredPort?: number): number {
   const envPort = Number.parseInt(process.env.PORT ?? '', 10);
-  return Number.isFinite(envPort) && envPort > 0 ? envPort : (configuredPort ?? 6070);
+  return Number.isFinite(envPort) && envPort > 0
+    ? envPort
+    : (configuredPort ?? 6070);
 }
 
 /**

@@ -181,7 +181,7 @@ async function resolveFrame(loc: ParsedFrame): Promise<SourceFrame | null> {
       highlightIndex: loc.line - 1 - start,
       fullSource: text,
     };
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -404,7 +404,7 @@ export function ErrorOverlay({ error }: { error?: Error }) {
             <span style={{ color: '#aaa', wordBreak: 'break-all' }}>
               {frame.file
                 .replace(/^file:\/\/\//, '')
-                .replace(/^https?:\/\/[^\/]+\//, '')
+                .replace(/^https?:\/\/[^/]+\//, '')
                 .split('/Coding/')
                 .pop()
                 ?.split('/')

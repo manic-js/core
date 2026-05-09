@@ -178,7 +178,7 @@ function parsePluginList(config: string): string[] {
     const pkg = importMap.get(fn);
     if (pkg) packages.add(pkg);
   }
-  return [...packages].sort();
+  return [...packages].toSorted();
 }
 
 export async function plugin(args: string[]): Promise<void> {
