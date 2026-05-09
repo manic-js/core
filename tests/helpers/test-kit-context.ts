@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
-export const repoRoot = join(import.meta.dir, '..', '..', '..', '..');
+export const repoRoot = join(import.meta.dir, '..', '..', '..');
 export const demoSourceDir = join(repoRoot, 'demo');
 export const cliEntry = join(
   import.meta.dir,
