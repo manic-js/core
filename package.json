@@ -1,6 +1,6 @@
 {
   "name": "manicjs",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Stupidly fast, Crazy light React framework powered by Bun and Hono",
   "keywords": [
     "bun",
@@ -88,8 +88,8 @@
     "test:integration": "bun run test:e2e"
   },
   "dependencies": {
-    "@manicjs/bundler": "0.0.0-canary.1",
-    "@manicjs/tui": "1.0.2-canary.0",
+    "@manicjs/bundler": "^0.0.1",
+    "@manicjs/tui": "^1.0.3",
     "bun-plugin-tailwind": "^0.1.2",
     "hono": "^4.12.18",
     "kill-port": "^2.0.1",
