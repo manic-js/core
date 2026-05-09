@@ -2,7 +2,9 @@ import { platform } from 'node:os';
 import { debugLog } from '@manicjs/tui';
 
 async function sleep(ms: number): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, ms));
+  await new Promise<void>(resolve => {
+    setTimeout(resolve, ms);
+  });
 }
 
 async function waitForExit(
@@ -22,21 +24,6 @@ async function waitForExit(
 
 function debug(message: string): void {
   debugLog('process', message);
-}
-
-async function getProcessGroupId(pid: number): Promise<string | null> {
-  try {
-    const proc = Bun.spawn(['ps', '-o', 'pgid=', '-p', String(pid)], {
-      stdout: 'pipe',
-      stderr: 'ignore',
-    });
-    const exit = await proc.exited;
-    if (exit !== 0) return null;
-    const out = (await new Response(proc.stdout).text()).trim();
-    return out || null;
-  } catch {
-    return null;
-  }
 }
 
 export async function stopSubprocessTree(
@@ -70,11 +57,11 @@ export async function stopSubprocessTree(
         stderr: 'ignore',
       }).exited;
     } else {
-      const pgid = await getProcessGroupId(pid);
-      const groupTarget = pgid ? `-${pgid}` : `-${pid}`;
-      debug(`posix kill group target=${groupTarget} pid=${pid}`);
-      // Kill process group, then any remaining direct children.
-      await Bun.spawn(['kill', '-TERM', groupTarget], {
+      debug(`posix targeted kill pid=${pid}`);
+      // Target only the spawned server process and its descendants.
+      // Avoid process-group kill to prevent collateral app shutdowns
+      // (e.g. browser processes that may share the same group).
+      await Bun.spawn(['kill', '-TERM', String(pid)], {
         stdout: 'ignore',
         stderr: 'ignore',
       }).exited;
@@ -83,7 +70,7 @@ export async function stopSubprocessTree(
         stderr: 'ignore',
       }).exited;
       await sleep(150);
-      await Bun.spawn(['kill', '-KILL', groupTarget], {
+      await Bun.spawn(['kill', '-KILL', String(pid)], {
         stdout: 'ignore',
         stderr: 'ignore',
       }).exited;

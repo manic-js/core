@@ -291,4 +291,12 @@ export async function dev({ port, network }: DevOptions): Promise<void> {
   process.on('SIGTERM', cleanup);
 
   await proc.exited;
+  // If the child exits unexpectedly, still release watcher/listener resources.
+  if (keyListener) process.stdin.off('data', keyListener);
+  if (process.stdin.isTTY) process.stdin.setRawMode?.(hadRawMode ?? false);
+  if (restartTimer) clearTimeout(restartTimer);
+  configWatcher?.close();
+  appWatcher?.close();
+  process.off('SIGINT', cleanup);
+  process.off('SIGTERM', cleanup);
 }

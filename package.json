@@ -72,7 +72,10 @@
   "publishConfig": {
     "access": "public"
   },
-  "scripts": {},
+  "scripts": {
+    "validate": "bunx --bun oxlint --config .oxlintrc.json src && bunx --bun oxfmt --check --config .oxfmt.json src",
+    "test:framework": "cd ../../demo && bun run build"
+  },
   "dependencies": {
     "@manicjs/bundler": "workspace:*",
     "@manicjs/tui": "^1.0.3",
