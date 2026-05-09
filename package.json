@@ -82,9 +82,10 @@
     "ci:format": "bunx --bun oxfmt --check --config .oxfmt.json .",
     "ci:typecheck": "if [ -f tsconfig.json ]; then bunx --bun tsc --noEmit; elif [ -f src/index.ts ]; then bunx --bun tsc --noEmit --module esnext --moduleResolution bundler --target es2022 src/index.ts; elif [ -f index.ts ]; then bunx --bun tsc --noEmit --module esnext --moduleResolution bundler --target es2022 index.ts; else echo \"No TypeScript entrypoint found\"; exit 1; fi",
     "ci:build": "if bun run | grep -q \"^ build$\"; then bun run build; elif [ -f src/index.ts ]; then bun build src/index.ts --target bun --outdir .ci-build; elif [ -f index.ts ]; then bun build index.ts --target bun --outdir .ci-build; else echo \"No build entrypoint found\"; exit 1; fi",
-    "ci:test": "bun test",
+    "ci:test": "bun run test:cli && bun run test:e2e",
     "ci:compliance": "test -f CODE_OF_CONDUCT.md && test -f LICENSE && test -f README.md",
-    "test": "bun test"
+    "test": "bun run test:cli",
+    "test:integration": "bun run test:e2e"
   },
   "dependencies": {
     "@manicjs/bundler": "0.0.0-canary.1",
