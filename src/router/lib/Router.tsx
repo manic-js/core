@@ -1,4 +1,5 @@
 import {
+  Component,
   createElement,
   useEffect,
   useState,
@@ -6,6 +7,8 @@ import {
   useMemo,
   type ComponentType,
   type ErrorInfo,
+  type ReactElement,
+  type ReactNode,
 } from 'react';
 import { flushSync } from 'react-dom';
 import { NotFound } from '../../components/NotFound';
@@ -162,10 +165,10 @@ function useErrorPage(
   return ResolvedComponent;
 }
 
-class ErrorBoundary extends React.Component<
+class ErrorBoundary extends Component<
   {
-    fallback: React.ReactNode;
-    children: React.ReactNode;
+    fallback: ReactNode;
+    children: ReactNode;
     onError: (error: Error) => void;
   },
   { hasError: boolean }
@@ -198,7 +201,7 @@ export function Router({
   routes: manualRoutes,
 }: {
   routes?: Record<string, LazyLoader>;
-}): React.ReactElement {
+}): ReactElement {
   const [currentPath, setCurrentPath] = useState(
     typeof window !== 'undefined' ? window.location.pathname : '/'
   );

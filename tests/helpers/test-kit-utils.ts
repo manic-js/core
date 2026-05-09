@@ -97,8 +97,10 @@ export const createDemoFixture = async (port = 6070) => {
     );
   }
 
-  const packagesRoot = join(demoSourceDir, '..', 'packages');
-  const pluginsRoot = join(demoSourceDir, '..', 'plugins');
+  const pluginsRoot = join(repoRoot, 'plugins');
+  const manicjsRoot = existsSync(join(repoRoot, 'core', 'package.json'))
+    ? join(repoRoot, 'core')
+    : join(repoRoot, 'packages', 'manic');
   await writeFile(
     join(fixtureDir, 'package.json'),
     JSON.stringify(
@@ -112,7 +114,7 @@ export const createDemoFixture = async (port = 6070) => {
           start: 'manic start',
         },
         dependencies: {
-          manicjs: `file:${join(packagesRoot, 'manic')}`,
+          manicjs: `file:${manicjsRoot}`,
           '@manicjs/api-docs': `file:${join(pluginsRoot, 'api-docs')}`,
           '@manicjs/mcp': `file:${join(pluginsRoot, 'mcp')}`,
           '@manicjs/seo': `file:${join(pluginsRoot, 'seo')}`,
