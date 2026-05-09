@@ -8,6 +8,11 @@ import {
 import { loadConfig, type ManicConfig } from '../config/index';
 import { join } from 'path';
 
+function resolveRuntimePort(configuredPort?: number): number {
+  const envPort = Number.parseInt(process.env.PORT ?? '', 10);
+  return Number.isFinite(envPort) && envPort > 0 ? envPort : (configuredPort ?? 6070);
+}
+
 /**
  * Creates and starts the Manic production/development server.
  *
@@ -64,7 +69,7 @@ export async function createManicServer(options: {
   const envKeys = options.envKeys || [];
   const startTime = options.startTime || performance.now();
   const prod = process.env.NODE_ENV === 'production';
-  const port = config.server?.port ?? 6070;
+  const port = resolveRuntimePort(config.server?.port);
   const hostname = '0.0.0.0';
   const dist = config.build?.outdir ?? '.manic';
 
