@@ -5,10 +5,19 @@ on:
   push:
     branches:
       - main
+      - canary
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  validate:
+  quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,28 +26,27 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        run: bun install --omit peer
+        run: |
+          if [ -f bun.lock ]; then
+            bun install --frozen-lockfile
+          else
+            bun install
+          fi
+
+      - name: Open source compliance
+        run: bun run ci:compliance
 
       - name: Lint
-        shell: bash
-        run: |
-          if bun run | grep -q "^ lint$"; then
-            bun run lint
-          elif bun run | grep -q "^ check$"; then
-            bun run check
-          else
-            bunx --bun oxlint .
-          fi
+        run: bun run ci:lint
 
-      - name: Format check
-        shell: bash
-        run: |
-          if bun run | grep -q "^ fmt:check$"; then
-            bun run fmt:check
-          elif bun run | grep -q "^ format:check$"; then
-            bun run format:check
-          elif bun run | grep -q "^ fmt$"; then
-            bun run fmt --check
-          else
-            bunx --bun oxfmt --check --config .oxfmt.json .
-          fi
+      - name: Format
+        run: bun run ci:format
+
+      - name: Typecheck
+        run: bun run ci:typecheck
+
+      - name: Build
+        run: bun run ci:build
+
+      - name: Test
+        run: bun run ci:test

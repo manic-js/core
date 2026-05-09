@@ -5,7 +5,6 @@ import {
   divider,
   eventLine,
   hint,
-  red,
   sectionTitle,
   statusError,
   statusPending,

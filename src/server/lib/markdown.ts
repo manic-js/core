@@ -116,12 +116,12 @@ export function htmlToMarkdown(html: string): string {
   );
 
   // Unordered lists
-  md = md.replace(/<ul\b[^>]*>([\s\S]*?)<\/ul>/gi, (_, content) => {
+  md = md.replace(/<ul\b[^>]*>([\s\S]*?)<\/ul>/gi, (_listMatch, content) => {
     return (
       '\n' +
       content.replace(
         /<li\b[^>]*>([\s\S]*?)<\/li>/gi,
-        (_: string, li: string) => {
+        (_liMatch: string, li: string) => {
           return '- ' + stripTags(li).trim() + '\n';
         }
       ) +
@@ -130,13 +130,13 @@ export function htmlToMarkdown(html: string): string {
   });
 
   // Ordered lists
-  md = md.replace(/<ol\b[^>]*>([\s\S]*?)<\/ol>/gi, (_, content) => {
+  md = md.replace(/<ol\b[^>]*>([\s\S]*?)<\/ol>/gi, (_listMatch, content) => {
     let i = 0;
     return (
       '\n' +
       content.replace(
         /<li\b[^>]*>([\s\S]*?)<\/li>/gi,
-        (_: string, li: string) => {
+        (_liMatch: string, li: string) => {
           return `${++i}. ${stripTags(li).trim()}\n`;
         }
       ) +

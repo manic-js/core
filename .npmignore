@@ -1,0 +1,11 @@
+.github/
+.agents/
+node_modules/
+tests/
+**/*.test.*
+**/__tests__/
+coverage/
+.manic/
+.ci-build/
+*.log
+.DS_Store

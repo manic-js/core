@@ -1,6 +1,22 @@
 import { watch } from 'fs/promises';
 import { cyan, dim, eventLine } from '@manicjs/tui';
 
+const debugRoutesEnabled = process.env.MANIC_DEBUG === '1';
+const routeExtensionPattern = /\.tsx?$/;
+const routeGroupWithSlashPattern = /\(([^)]+)\)\//g;
+const routeGroupOnlyPattern = /\(([^)]+)\)$/;
+const catchAllPattern = /\[\.\.\.([^\]]+)\]/g;
+const dynamicSegmentPattern = /\[([^\]]+)\]/g;
+const generatedTouchPattern = /\n?\/\/ ~manic-touch: \d+$/;
+const routeManifestOutPath = 'app/~routes.generated.ts';
+let lastManifestWrite = '';
+
+const toRouteName = (filename: string): string =>
+  filename
+    .replace(routeExtensionPattern, '')
+    .replace(/\/index$/, '')
+    .replace(/^index$/, '/') || '/';
+
 /**
  * Information about a discovered route
  * @interface RouteInfo
@@ -42,19 +58,19 @@ export async function discoverRoutes(
     const filePath = `${routesDir}/${file}`;
 
     let urlPath = file
-      .replace(/\.tsx?$/, '')
+      .replace(routeExtensionPattern, '')
       .replace(/\/index$/, '')
       .replace(/^index$/, '');
 
     // Strip route groups: (groupName)/ → nothing
-    urlPath = urlPath.replace(/\(([^)]+)\)\//g, '');
+    urlPath = urlPath.replace(routeGroupWithSlashPattern, '');
     // Handle route group as the only segment
-    urlPath = urlPath.replace(/\(([^)]+)\)$/, '');
+    urlPath = urlPath.replace(routeGroupOnlyPattern, '');
 
     // Convert catch-all [...slug] to :...slug
-    urlPath = urlPath.replace(/\[\.\.\.([^\]]+)\]/g, ':...$1');
+    urlPath = urlPath.replace(catchAllPattern, ':...$1');
     // Convert dynamic [param] to :param
-    urlPath = urlPath.replace(/\[([^\]]+)\]/g, ':$1');
+    urlPath = urlPath.replace(dynamicSegmentPattern, ':$1');
 
     urlPath = urlPath === '' ? '/' : `/${urlPath}`;
 
@@ -93,7 +109,10 @@ export async function discoverFavicon(
     priorities.map(f => Bun.file(`${assetsDir}/${f}`).exists())
   );
   const idx = results.indexOf(true);
-  return idx !== -1 ? `/assets/${priorities[idx]}` : null;
+  if (idx === -1) {
+    return null;
+  }
+  return `/assets/${priorities[idx]}`;
 }
 
 /**
@@ -157,8 +176,9 @@ export async function generateRoutesManifest(
   const errorPages = await discoverErrorPages(routesDir);
 
   const routeEntries = routes
+    .toSorted((a, b) => a.path.localeCompare(b.path))
     .map(r => {
-      const importPath = `./${r.filePath.replace('app/', '').replace(/\.tsx?$/, '')}`;
+      const importPath = `./${r.filePath.replace('app/', '').replace(routeExtensionPattern, '')}`;
       return `  "${r.path}": () => import("${importPath}"),`;
     })
     .join('\n');
@@ -230,14 +250,14 @@ async function touchManicEntry(
   outPath: string = 'app/~routes.generated.ts'
 ): Promise<void> {
   // Derive ~manic.ts path from the output path's directory parent
-  const appDir = outPath.substring(0, outPath.lastIndexOf('/'));
+  const appDir = outPath.slice(0, Math.max(0, outPath.lastIndexOf('/')));
   const manicPath = `${appDir}/../~manic.ts`;
   const file = Bun.file(manicPath);
   if (await file.exists()) {
     const content = await file.text();
     // Update or append a timestamp comment to trigger bun --watch
     const timestampComment = `// ~manic-touch: ${Date.now()}`;
-    const updated = content.replace(/\n?\/\/ ~manic-touch: \d+$/, '');
+    const updated = content.replace(generatedTouchPattern, '');
     await Bun.write(manicPath, updated + '\n' + timestampComment);
   }
 }
@@ -261,11 +281,14 @@ async function touchManicEntry(
  * // Writes and touches ~manic.ts
  */
 export async function writeRoutesManifest(
-  outPath: string = 'app/~routes.generated.ts',
+  outPath: string = routeManifestOutPath,
   touch: boolean = false
 ): Promise<string> {
   const content = await generateRoutesManifest();
-  await Bun.write(outPath, content);
+  if (content !== lastManifestWrite) {
+    await Bun.write(outPath, content);
+    lastManifestWrite = content;
+  }
   if (touch) await touchManicEntry(outPath);
   return content;
 }
@@ -292,33 +315,35 @@ export async function watchRoutes(
 ): Promise<void> {
   const watcher = watch(routesDir, { recursive: true });
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingFilename = '';
+  let hasRenameEvent = false;
 
   for await (const event of watcher) {
-    if (
-      event.filename &&
-      /\.tsx?$/.test(event.filename) &&
-      !event.filename.startsWith('~')
-    ) {
-      const filename = event.filename;
-      const isStructureChange = event.eventType === 'rename';
+    if (!event.filename) continue;
+    if (!routeExtensionPattern.test(event.filename)) continue;
+    if (event.filename.startsWith('~')) continue;
 
-      if (debounceTimer) clearTimeout(debounceTimer);
+    pendingFilename = event.filename;
+    hasRenameEvent ||= event.eventType === 'rename';
+    if (debounceTimer) clearTimeout(debounceTimer);
+    const filenameSnapshot = pendingFilename;
+    const touchSnapshot = hasRenameEvent;
 
-      debounceTimer = setTimeout(async () => {
-        if (isStructureChange) {
-          const startTime = performance.now();
-          // Only trigger server restart (touch: true) if a file was added/deleted
-          await writeRoutesManifest('app/~routes.generated.ts', true);
-          const duration = Math.round(performance.now() - startTime);
-          const routeName = filename
-            .replace(/\.tsx?$/, '')
-            .replace(/\/index$/, '')
-            .replace(/^index$/, '/');
+    debounceTimer = setTimeout(async () => {
+      hasRenameEvent = false;
+      const startTime = performance.now();
+      await writeRoutesManifest(routeManifestOutPath, touchSnapshot);
+      const duration = Math.round(performance.now() - startTime);
+      const routeName = toRouteName(filenameSnapshot);
 
-          onChange(routeName || '/', duration);
-        }
-      }, 50);
-    }
+      if (debugRoutesEnabled) {
+        const rssMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
+        console.log(
+          eventLine('routes', `manifest sync ${duration}ms rss=${rssMb}MB`)
+        );
+      }
+      onChange(routeName || '/', duration);
+    }, 70);
   }
 }
 

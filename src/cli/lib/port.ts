@@ -1,13 +1,5 @@
 import { createServer } from 'node:net';
-import {
-  PromptSession,
-  cyan,
-  debugLog,
-  dim,
-  eventLine,
-  red,
-  yellow,
-} from '@manicjs/tui';
+import { PromptSession, cyan, debugLog, eventLine, yellow } from '@manicjs/tui';
 import { platform } from 'node:os';
 import killPort from 'kill-port';
 
@@ -43,6 +35,7 @@ async function getPortPids(port: number): Promise<string[]> {
         .split(/\r?\n/)
         .map(line => line.trim())
         .filter(Boolean)
+        .filter(line => line.includes('LISTENING'))
         .map(line => line.split(/\s+/).pop() ?? '')
         .filter(Boolean);
       return [...new Set(pids)];
@@ -52,7 +45,7 @@ async function getPortPids(port: number): Promise<string[]> {
   }
 
   try {
-    const proc = Bun.spawn(['lsof', '-ti', `tcp:${port}`], {
+    const proc = Bun.spawn(['lsof', '-ti', '-sTCP:LISTEN', `tcp:${port}`], {
       stdout: 'pipe',
       stderr: 'pipe',
     });
@@ -68,21 +61,6 @@ async function getPortPids(port: number): Promise<string[]> {
   }
 }
 
-async function getProcessGroupId(pid: string): Promise<string | null> {
-  try {
-    const proc = Bun.spawn(['ps', '-o', 'pgid=', '-p', pid], {
-      stdout: 'pipe',
-      stderr: 'ignore',
-    });
-    const exit = await proc.exited;
-    if (exit !== 0) return null;
-    const out = (await new Response(proc.stdout).text()).trim();
-    return out || null;
-  } catch {
-    return null;
-  }
-}
-
 async function killOwnerTree(pid: string): Promise<void> {
   const os = platform();
   if (os === 'win32') {
@@ -93,10 +71,8 @@ async function killOwnerTree(pid: string): Promise<void> {
     return;
   }
 
-  const pgid = await getProcessGroupId(pid);
-  const groupTarget = pgid ? `-${pgid}` : `-${pid}`;
-  // Kill process group first (covers parents + children in same group).
-  await Bun.spawn(['kill', '-TERM', groupTarget], {
+  // Kill only the target listener and its descendants (no process-group kill).
+  await Bun.spawn(['kill', '-TERM', pid], {
     stdout: 'ignore',
     stderr: 'ignore',
   }).exited;
@@ -106,7 +82,7 @@ async function killOwnerTree(pid: string): Promise<void> {
     stderr: 'ignore',
   }).exited;
   await sleep(200);
-  await Bun.spawn(['kill', '-KILL', groupTarget], {
+  await Bun.spawn(['kill', '-KILL', pid], {
     stdout: 'ignore',
     stderr: 'ignore',
   }).exited;
@@ -141,7 +117,9 @@ export async function isPortInUse(
 }
 
 async function sleep(ms: number): Promise<void> {
-  await new Promise(resolve => setTimeout(resolve, ms));
+  await new Promise<void>(resolve => {
+    setTimeout(resolve, ms);
+  });
 }
 
 export async function findNextAvailablePort(
