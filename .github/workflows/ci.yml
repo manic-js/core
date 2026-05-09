@@ -5,9 +5,10 @@ on:
   push:
     branches:
       - main
+      - canary
 
 jobs:
-  validate:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -17,45 +18,22 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        run: bun install --omit peer
+        run: bun install --frozen-lockfile
+
+      - name: Open source compliance
+        run: bun run ci:compliance
 
       - name: Lint
-        shell: bash
-        run: |
-          if bun run | grep -q "^ lint$"; then
-            bun run lint
-          elif bun run | grep -q "^ check$"; then
-            bun run check
-          else
-            bunx --bun oxlint --config .oxlintrc.json .
-          fi
+        run: bun run ci:lint
 
-      - name: Format check
-        shell: bash
-        run: |
-          if bun run | grep -q "^ fmt:check$"; then
-            bun run fmt:check
-          elif bun run | grep -q "^ format:check$"; then
-            bun run format:check
-          elif bun run | grep -q "^ fmt$"; then
-            bun run fmt --check
-          else
-            bunx --bun oxfmt --check --config .oxfmt.json .
-          fi
+      - name: Format
+        run: bun run ci:format
 
-  framework-tests:
-    name: Framework tests
-    runs-on: ubuntu-latest
-    needs: validate
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Typecheck
+        run: bun run ci:typecheck
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Build
+        run: bun run ci:build
 
-      - name: Install dependencies
-        run: bun install --omit peer
-
-      - name: Run framework suite
-        run: bun run test:framework
+      - name: Test
+        run: bun run ci:test
