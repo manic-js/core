@@ -25,8 +25,9 @@
   },
   "files": [
     "index.ts",
-    "src/**/*",
-    "README.md"
+    "src",
+    "README.md",
+    "LICENSE"
   ],
   "type": "module",
   "main": "./index.ts",
