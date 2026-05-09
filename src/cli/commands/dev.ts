@@ -25,6 +25,19 @@ interface DevOptions {
   network?: boolean;
 }
 
+function resolveServeStaticPlugin(specifier: string): string {
+  const clean = specifier.replace(/^["']|["']$/g, '');
+  try {
+    return Bun.resolveSync(clean, process.cwd());
+  } catch {
+    try {
+      return Bun.resolveSync(clean, import.meta.dir);
+    } catch {
+      return clean;
+    }
+  }
+}
+
 /**
  * Generates bunfig.toml by merging plugin bunfig snippets
  * @param plugins - Array of Manic plugins with bunfig configurations
@@ -35,22 +48,6 @@ async function writeBunfig(
 ) {
   const serveStaticPlugins: string[] = [];
   const otherSnippets: string[] = [];
-
-  const resolveServeStaticPlugin = (specifier: string): string => {
-    const clean = specifier.replace(/^["']|["']$/g, '');
-    try {
-      // First try project-local resolution (expected for app dependencies)
-      return Bun.resolveSync(clean, process.cwd());
-    } catch {
-      try {
-        // Fallback: resolve relative to manic CLI package dependencies
-        return Bun.resolveSync(clean, import.meta.dir);
-      } catch {
-        // Last fallback: keep original specifier
-        return clean;
-      }
-    }
-  };
 
   for (const plugin of plugins) {
     if (!plugin.bunfig) continue;
@@ -120,19 +117,6 @@ export async function dev({ port, network }: DevOptions): Promise<void> {
     }
     const opener = os === 'darwin' ? 'open' : 'xdg-open';
     Bun.spawn([opener, url], { stdout: 'ignore', stderr: 'ignore' }).unref();
-  };
-
-  const loadAndSpawn = async () => {
-    // Invalidate config cache by deleting the cached module
-    const { cachedConfig } = (await import('../../config')) as any;
-    if (cachedConfig !== undefined) {
-      // Reset by re-importing with bust
-      const { loadConfig: load } = await import(`../../config?t=${Date.now()}`);
-      const config = await load(cwd);
-      return { config };
-    }
-    const config = await loadConfig(cwd);
-    return { config };
   };
 
   let config = await loadConfig(cwd);

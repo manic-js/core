@@ -55,6 +55,10 @@ function formatTime(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
+function endStatusLine(): void {
+  process.stdout.write('\n');
+}
+
 /**
  * Calculates the total size of a directory recursively
  * @param dir - Directory path to calculate size for
@@ -154,10 +158,6 @@ export async function build() {
   const updatePending = (message: string): void => {
     process.stdout.write(`\r${statusPending(message)}${' '.repeat(24)}`);
   };
-  const endStatusLine = (): void => {
-    process.stdout.write('\n');
-  };
-
   console.log(`\n${brandTitle('build')}\n`);
   console.log(sectionTitle('Pipeline', 'build'));
   console.log(`  ${hint('Mode:', config.mode ?? 'fullstack')}`);

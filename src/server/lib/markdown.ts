@@ -121,7 +121,7 @@ export function htmlToMarkdown(html: string): string {
       '\n' +
       content.replace(
         /<li\b[^>]*>([\s\S]*?)<\/li>/gi,
-        (_: string, li: string) => {
+        (_liMatch: string, li: string) => {
           return '- ' + stripTags(li).trim() + '\n';
         }
       ) +
@@ -136,7 +136,7 @@ export function htmlToMarkdown(html: string): string {
       '\n' +
       content.replace(
         /<li\b[^>]*>([\s\S]*?)<\/li>/gi,
-        (_: string, li: string) => {
+        (_liMatch: string, li: string) => {
           return `${++i}. ${stripTags(li).trim()}\n`;
         }
       ) +
