@@ -1,13 +1,5 @@
 import { createServer } from 'node:net';
-import {
-  PromptSession,
-  cyan,
-  debugLog,
-  dim,
-  eventLine,
-  red,
-  yellow,
-} from '@manicjs/tui';
+import { PromptSession, cyan, debugLog, eventLine, yellow } from '@manicjs/tui';
 import { platform } from 'node:os';
 import killPort from 'kill-port';
 
