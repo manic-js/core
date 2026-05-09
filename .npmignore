@@ -1,0 +1,9 @@
+.github/
+.agents/
+node_modules/
+tests/
+coverage/
+.manic/
+.ci-build/
+*.log
+.DS_Store
