@@ -8,27 +8,11 @@ Manic is a high-performance React framework built exclusively for Bun.
 
 It ships with a custom build pipeline, first-class plugin architecture, and production-ready DX for local development, deployment, and AI-native workflows.
 
-## Monorepo Layout
+## About this package
 
-This repository is now an umbrella workspace that tracks core packages and plugins as git submodules from the [`manic-js`](https://github.com/manic-js) organization.
+**`manicjs`** is the Manic core: the **`manic`** CLI, runtime, file-based router, and Hono-based server integration for Bun and React. Source and issues: **[github.com/manic-js/core](https://github.com/manic-js/core)**.
 
-Clone with submodules:
-
-```bash
-git clone --recurse-submodules https://github.com/Rahuletto/manic
-```
-
-If you already cloned:
-
-```bash
-git submodule update --init --recursive
-```
-
-Pull latest submodule changes:
-
-```bash
-git submodule update --remote --recursive
-```
+The **[Rahuletto/manic](https://github.com/Rahuletto/manic)** repo is an optional coordinator workspace for maintainers who want every `manic-js/*` package and the demo in one tree (`./setup.sh`). You do not need it to install **`manicjs`** from npm or to build an app with **Quick Start** below.
 
 ## Documentation
 
