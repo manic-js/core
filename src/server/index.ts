@@ -244,12 +244,19 @@ export async function createManicServer(options: {
           return serveHtml(req);
         }
         const res = await fetch(new Request(`${url.origin}${htmlBundleNonce}`));
-        if (linkHeaders.length) {
-          const h = new Headers(res.headers);
-          h.set('Link', linkHeaders.join(', '));
-          return new Response(res.body, { status: res.status, headers: h });
+        let body = await res.text();
+        if (htmlInjections.length) {
+          body = body.replace(
+            '</head>',
+            `${htmlInjections.join('\n')}\n</head>`
+          );
         }
-        return res;
+        const h = new Headers(res.headers);
+        h.delete('content-length');
+        if (linkHeaders.length) {
+          h.set('Link', linkHeaders.join(', '));
+        }
+        return new Response(body, { status: res.status, headers: h });
       }
     }
 

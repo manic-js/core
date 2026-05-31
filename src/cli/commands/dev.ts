@@ -167,7 +167,7 @@ export async function dev({ port, network }: DevOptions): Promise<void> {
     };
 
     const preloads = (cfg.plugins ?? []).flatMap(p =>
-      p.preload ? ['--preload', p.preload] : []
+      p.preload ? ['--preload', resolveServeStaticPlugin(p.preload)] : []
     );
     await writeBunfig(cfg.plugins ?? []);
     debugLog(
