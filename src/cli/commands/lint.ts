@@ -7,6 +7,7 @@ import {
   statusError,
   statusPending,
   statusSuccess,
+  bold,
 } from '@manicjs/tui';
 
 /**
@@ -44,5 +45,6 @@ export async function lint(): Promise<void> {
     console.log(statusError(`Lint failed (exit ${exitCode})`));
     process.exit(exitCode);
   }
+
   console.log(statusSuccess('Lint passed'));
 }

@@ -1,5 +1,6 @@
 export {
   Link,
+  Image,
   navigate,
   Router,
   useRouter,

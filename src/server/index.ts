@@ -264,6 +264,81 @@ export async function createManicServer(options: {
   };
 
   const bunRoutes: Record<string, any> = {};
+
+  // High-performance image optimization endpoint
+  bunRoutes['/api/_manic/image'] = async (req: Request) => {
+    try {
+      const url = new URL(req.url);
+      const imageUrl = url.searchParams.get('url');
+      if (!imageUrl) {
+        return new Response('Missing url parameter', { status: 400 });
+      }
+
+      const wParam = url.searchParams.get('w');
+      const width = wParam ? parseInt(wParam, 10) : null;
+      const qParam = url.searchParams.get('q');
+      const quality = qParam ? parseInt(qParam, 10) : 95;
+
+      let imageFile: any;
+      const imageUrlStr = imageUrl;
+      const isLocal = !/^(https?:|\/\/)/.test(imageUrlStr);
+
+      if (isLocal) {
+        const path = imageUrlStr.startsWith('/')
+          ? imageUrlStr.substring(1)
+          : imageUrlStr;
+        const publicFile = Bun.file(join(process.cwd(), 'public', path));
+        if (await publicFile.exists()) {
+          imageFile = publicFile;
+        } else {
+          const clientFile = Bun.file(join(process.cwd(), path));
+          if (await clientFile.exists()) {
+            imageFile = clientFile;
+          }
+        }
+      } else {
+        const response = await fetch(imageUrlStr);
+        if (!response.ok) {
+          return new Response('Failed to fetch remote image', { status: 502 });
+        }
+        imageFile = await response.blob();
+      }
+
+      if (!imageFile) {
+        return new Response('Image not found', { status: 404 });
+      }
+
+      if ((imageUrlStr.split('?')[0] || '').toLowerCase().endsWith('.svg')) {
+        return new Response(imageFile, {
+          headers: {
+            'Content-Type': 'image/svg+xml',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+          },
+        });
+      }
+
+      let img = (imageFile as any).image();
+      if (width && !isNaN(width)) {
+        img = img.resize(width, null, { fit: 'inside' });
+      }
+
+      const buffer = await img
+        .webp({ quality, lossless: quality >= 95 })
+        .bytes();
+
+      return new Response(buffer, {
+        headers: {
+          'Content-Type': 'image/webp',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      });
+    } catch (err: any) {
+      return new Response(`Image optimization failed: ${err.message}`, {
+        status: 500,
+      });
+    }
+  };
+
   if (isHtmlBundle && !prod) {
     // Only register the nonce route — Bun needs one static HTMLBundle route to
     // process assets (Tailwind, HMR, .tsx imports). All page routes go through

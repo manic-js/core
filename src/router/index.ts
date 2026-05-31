@@ -36,6 +36,8 @@ export { setViewTransitions } from './lib/Router';
 export { preloadRoute } from './lib/Router';
 /** @see https://www.manicjs.tech/docs/api/router/link#props */
 export { Link } from './lib/Link';
+/** @see https://www.manicjs.tech/docs/api/router/image#props */
+export { Image } from './lib/Image';
 /** @see https://www.manicjs.tech/docs/api/router/router-context#provided-value-routercontextvalue */
 export { RouterContext } from './lib/context';
 /** @see https://www.manicjs.tech/docs/api/router/use-router#hook-signature */

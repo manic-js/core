@@ -10,6 +10,7 @@ import {
   statusPending,
   statusSuccess,
   white,
+  yellow,
 } from '@manicjs/tui';
 import bunPluginTailwind from 'bun-plugin-tailwind';
 import {
@@ -84,6 +85,17 @@ export async function build() {
 
   updateStatus('All checks are done!');
   endStatusLine();
+
+  const warnings: string[] = (globalThis as any).__MANIC_BUILD_WARNINGS__ || [];
+  if (warnings.length > 0) {
+    const uniqueWarnings = Array.from(new Set(warnings));
+    console.log(dim('│'));
+    console.log(`${bold(yellow('⚠️  Build Warnings'))}:`);
+    for (const w of uniqueWarnings) {
+      console.log(`  ${w}`);
+    }
+  }
+
   console.log(dim('│'));
 
   console.log(statusSuccess('Build completed successfully'));

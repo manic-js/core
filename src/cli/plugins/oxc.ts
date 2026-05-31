@@ -14,6 +14,47 @@ export function oxcPlugin(isDev = false): BunPlugin {
           const ext = args.path.split('.').pop() as string;
           const config = getConfig();
 
+          if (args.path.includes('/app/') && (ext === 'tsx' || ext === 'jsx')) {
+            const hasRawImg = /<img\b[^>]*>/i.test(sourceText);
+            const hasRawAnchor = /<a\b[^>]*>/i.test(sourceText);
+            const relativePath = args.path.replace(process.cwd() + '/', '');
+
+            // Initialize global warnings array if not present
+            if (!(globalThis as any).__MANIC_BUILD_WARNINGS__) {
+              (globalThis as any).__MANIC_BUILD_WARNINGS__ = [];
+            }
+            const warnings = (globalThis as any).__MANIC_BUILD_WARNINGS__;
+
+            if (hasRawImg) {
+              warnings.push(
+                `\x1b[33m[Manic Performance Warning]\x1b[0m Raw <img> tag found in ${relativePath}. Use <Image /> from 'manicjs/router' for automatic layout stability and SIMD image compression.`
+              );
+            }
+            if (hasRawAnchor) {
+              warnings.push(
+                `\x1b[33m[Manic Router Warning]\x1b[0m Raw <a> tag found in ${relativePath}. Use <Link /> from 'manicjs/router' for client-side routing.`
+              );
+            }
+
+            // Check for <Image /> tag missing width and height
+            const imageMatches = sourceText.match(/<Image\b[^>]*>/gi);
+            if (imageMatches) {
+              for (const tag of imageMatches) {
+                const hasWidth = /\bwidth\s*=\s*/i.test(tag);
+                const hasHeight = /\bheight\s*=\s*/i.test(tag);
+                const isSvgAttr = /\bsrc\s*=\s*['"`][^'"`]*\.svg['"`]/i.test(
+                  tag
+                );
+                if (!hasWidth && !hasHeight && !isSvgAttr) {
+                  warnings.push(
+                    `\x1b[33m[Manic Image Warning]\x1b[0m <Image /> tag missing both "width" and "height" attributes in ${relativePath}. Adding dimensions improves CLS performance.`
+                  );
+                  break; // Warn once per file
+                }
+              }
+            }
+          }
+
           const result = transformSync(args.path, sourceText, {
             lang: ext as any,
             target: (isDev

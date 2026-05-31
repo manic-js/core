@@ -69,13 +69,16 @@ export function Link({
 }: LinkProps) {
   useRouter();
 
+  const isExternal = /^(https?:|\/\/|mailto:|tel:)/.test(to) || to.startsWith('#');
+
   const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (isExternal) return;
     e.preventDefault();
     navigate(to, { replace });
   };
 
   const handlePreload = () => {
-    if (prefetch) {
+    if (prefetch && !isExternal) {
       preloadRoute(to);
     }
   };
