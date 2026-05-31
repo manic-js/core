@@ -317,6 +317,28 @@ export async function createManicServer(options: {
         });
       }
 
+      if (typeof (imageFile as any).image !== 'function') {
+        const ext = (imageUrlStr.split('?')[0] || '').split('.').pop()?.toLowerCase();
+        let contentType = imageFile.type;
+        if (!contentType) {
+          switch (ext) {
+            case 'png': contentType = 'image/png'; break;
+            case 'jpg':
+            case 'jpeg': contentType = 'image/jpeg'; break;
+            case 'gif': contentType = 'image/gif'; break;
+            case 'webp': contentType = 'image/webp'; break;
+            case 'avif': contentType = 'image/avif'; break;
+            default: contentType = 'application/octet-stream';
+          }
+        }
+        return new Response(imageFile, {
+          headers: {
+            'Content-Type': contentType,
+            'Cache-Control': 'public, max-age=31536000, immutable',
+          },
+        });
+      }
+
       let img = (imageFile as any).image();
       if (width && !isNaN(width)) {
         img = img.resize(width, null, { fit: 'inside' });
