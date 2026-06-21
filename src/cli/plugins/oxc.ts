@@ -7,7 +7,12 @@ export function oxcPlugin(isDev = false): BunPlugin {
     name: 'manic-oxc-transform',
     setup(build) {
       build.onLoad({ filter: /\.(tsx?|jsx)$/ }, async args => {
-        if (args.path.includes('node_modules')) return undefined;
+        if (
+          args.path.includes('node_modules') ||
+          args.path.includes('tui/src/') ||
+          args.path.includes('\\tui\\src\\')
+        )
+          return undefined;
 
         try {
           const sourceText = await Bun.file(args.path).text();
@@ -15,6 +20,9 @@ export function oxcPlugin(isDev = false): BunPlugin {
           const config = getConfig();
 
           if (args.path.includes('/app/') && (ext === 'tsx' || ext === 'jsx')) {
+            const isMainEntry =
+              args.path.endsWith('/app/main.tsx') ||
+              args.path.endsWith('/app/main.jsx');
             const hasRawImg = /<img\b[^>]*>/i.test(sourceText);
             const hasRawAnchor = /<a\b[^>]*>/i.test(sourceText);
             const relativePath = args.path.replace(process.cwd() + '/', '');
@@ -51,6 +59,23 @@ export function oxcPlugin(isDev = false): BunPlugin {
                   );
                   break; // Warn once per file
                 }
+              }
+            }
+
+            // Detect interactive features in Server Components
+            const isClient = /^\s*['"]use client['"]/mu.test(sourceText);
+            if (!isClient && !isMainEntry) {
+              const hookMatch = sourceText.match(
+                /\b(useState|useEffect|useRef|useReducer|useMemo|useCallback|useContext|useLayoutEffect|useTransition|useDeferredValue)\b/u
+              );
+              const eventMatch = sourceText.match(/\bon[A-Z]\w*\s*=/u);
+              if (hookMatch || eventMatch) {
+                const feature = hookMatch
+                  ? `React hook "${hookMatch[1]}"`
+                  : 'JSX event handler';
+                const errorMsg = `[Manic Server Component Error] ${feature} found in Server Component ${relativePath}. Interactive features require client-side execution. Add the "use client" directive at the top of the file to mark it as a Client Component.`;
+                console.error(`\x1b[31m${errorMsg}\x1b[0m`);
+                throw new Error(errorMsg);
               }
             }
           }

@@ -21,11 +21,13 @@ type LazyLoader = () => Promise<{ default: ComponentType }>;
 
 declare global {
   interface Window {
-    __MANIC_ROUTES__?: Record<string, LazyLoader>;
+    __MANIC_ROUTES__?: Record<string, any>;
     __MANIC_ERROR_PAGES__?: {
-      notFound?: LazyLoader;
-      error?: LazyLoader;
+      notFound?: any;
+      error?: any;
     };
+    __MANIC_LOADER_DATA__?: any;
+    __MANIC_SSR_COMPONENT__?: ComponentType;
     __MANIC_NAVIGATE__?: (to: string, options?: { replace?: boolean }) => void;
   }
 
@@ -62,6 +64,69 @@ export { useQueryParams };
 // Cache loaded components
 const componentCache = new Map<string, ComponentType>();
 
+let cachedLoaderData: any = null;
+let parsedLoaderData = false;
+
+function getSsrLoaderData(): any {
+  if (typeof window === 'undefined') return null;
+  if (parsedLoaderData) return cachedLoaderData;
+  parsedLoaderData = true;
+  const dataEl = document.getElementById('__MANIC_DATA__');
+  if (dataEl && dataEl.textContent) {
+    try {
+      cachedLoaderData = JSON.parse(dataEl.textContent);
+      dataEl.remove();
+    } catch (e) {
+      console.error('Failed to parse SSR loader data:', e);
+    }
+  }
+  return cachedLoaderData;
+}
+
+function getInitialSsrState(routes: Record<string, any>): {
+  component: ComponentType | null;
+  params: Record<string, string>;
+  loaderData: any;
+} {
+  if (typeof window === 'undefined') {
+    return { component: null, params: {}, loaderData: null };
+  }
+
+  const root = document.getElementById('root');
+  if (!root?.hasChildNodes()) {
+    return { component: null, params: {}, loaderData: null };
+  }
+
+  const routeDefs = Object.entries(routes).map(([path, entry]) => ({
+    path: path || '/',
+    component: null,
+    loader: typeof entry === 'function' ? entry : entry.import,
+  }));
+  const match = new RouteRegistry(routeDefs).match(window.location.pathname);
+  if (window.__MANIC_SSR_COMPONENT__) {
+    return {
+      component: window.__MANIC_SSR_COMPONENT__,
+      params: match?.params ?? {},
+      loaderData: getSsrLoaderData(),
+    };
+  }
+
+  if (!match) {
+    return {
+      component: null,
+      params: {},
+      loaderData: getSsrLoaderData(),
+    };
+  }
+
+  const cached = componentCache.get(match.path);
+  return {
+    component: cached ?? null,
+    params: match.params,
+    loaderData: getSsrLoaderData(),
+  };
+}
+
 // Clear component cache during HMR so new components are picked up
 if (import.meta.hot) {
   import.meta.hot.accept(() => {
@@ -71,11 +136,12 @@ if (import.meta.hot) {
 
 async function loadComponent(
   path: string,
-  loader: LazyLoader,
+  entry: any,
   signal?: AbortSignal
 ): Promise<ComponentType | null> {
   if (!componentCache.has(path)) {
     try {
+      const loader = typeof entry === 'function' ? entry : entry.import;
       const module = await loader();
       if (signal?.aborted) return null;
       componentCache.set(path, module.default);
@@ -94,17 +160,18 @@ export function preloadRoute(path: string): void {
   const routes = window.__MANIC_ROUTES__;
 
   // Use registry to match the actual route loader
-  const routeDefs = Object.entries(routes).map(([p, loader]) => ({
+  const routeDefs = Object.entries(routes).map(([p, entry]) => ({
     path: p || '/',
     component: null,
-    loader,
+    loader: typeof entry === 'function' ? entry : entry.import,
   }));
   const registry = new RouteRegistry(routeDefs);
   const match = registry.match(path);
 
   if (match) {
-    const loader = routes[match.path];
-    if (loader && !componentCache.has(match.path)) {
+    const entry = routes[match.path];
+    if (entry && !componentCache.has(match.path)) {
+      const loader = typeof entry === 'function' ? entry : entry.import;
       loader().then(mod => componentCache.set(match.path, mod.default));
     }
   }
@@ -200,15 +267,8 @@ class ErrorBoundary extends Component<
 export function Router({
   routes: manualRoutes,
 }: {
-  routes?: Record<string, LazyLoader>;
+  routes?: Record<string, any>;
 }): ReactElement {
-  const [currentPath, setCurrentPath] = useState(
-    typeof window !== 'undefined' ? window.location.pathname : '/'
-  );
-  const [LoadedComponent, setLoadedComponent] = useState<ComponentType | null>(
-    null
-  );
-  const [routeParams, setRouteParams] = useState<Record<string, string>>({});
   const [errorDetails, setErrorDetails] = useState<Error | null>(null);
   const [resolvedDevRoutes, setResolvedDevRoutes] = useState<
     { path: string; file: string; componentName: string }[] | undefined
@@ -219,9 +279,27 @@ export function Router({
     typeof document.startViewTransition
   > | null>(null);
 
-  const rawRoutes: Record<string, LazyLoader> =
+  const rawRoutes: Record<string, any> =
     manualRoutes ??
     (typeof window !== 'undefined' ? (window.__MANIC_ROUTES__ ?? {}) : {});
+
+  const initialSsrState = useMemo(
+    () => getInitialSsrState(rawRoutes),
+    [rawRoutes]
+  );
+
+  const [currentPath, setCurrentPath] = useState(
+    typeof window !== 'undefined' ? window.location.pathname : '/'
+  );
+  const [LoadedComponent, setLoadedComponent] = useState<ComponentType | null>(
+    () => initialSsrState.component
+  );
+  const [routeParams, setRouteParams] = useState<Record<string, string>>(
+    () => initialSsrState.params
+  );
+  const [loaderData, setLoaderData] = useState<any>(
+    () => initialSsrState.loaderData
+  );
 
   const errorPages =
     typeof window !== 'undefined' ? window.__MANIC_ERROR_PAGES__ : undefined;
@@ -229,8 +307,9 @@ export function Router({
   useEffect(() => {
     if (process.env.NODE_ENV === 'production') return;
     Promise.all(
-      Object.entries(rawRoutes).map(async ([p, loader]) => {
+      Object.entries(rawRoutes).map(async ([p, entry]) => {
         const normalized = p || '/';
+        const loader = typeof entry === 'function' ? entry : entry.import;
         // Extract file path from the loader function source
         const src = loader.toString();
         const match = src.match(/import\(["']([^"']+)["']\)/);
@@ -264,10 +343,10 @@ export function Router({
 
   // Compile routes into a registry exactly once
   const registry = useMemo(() => {
-    const defs = Object.entries(rawRoutes).map(([path, loader]) => ({
+    const defs = Object.entries(rawRoutes).map(([path, entry]) => ({
       path: path || '/',
       component: null,
-      loader,
+      loader: typeof entry === 'function' ? entry : entry.import,
     }));
     return new RouteRegistry(defs);
   }, [rawRoutes]);
@@ -385,6 +464,14 @@ export function Router({
       window.history.scrollRestoration = 'manual';
     }
 
+    // Read SSR-injected loader data for hydration
+    if (componentCache.size === 0) {
+      const ssrData = getSsrLoaderData();
+      if (ssrData) {
+        setLoaderData(ssrData);
+      }
+    }
+
     // Assign globally for <Link> and manual navigation
     window.__MANIC_NAVIGATE__ = (to: string, options) => {
       loadAndTransition(to, false, options?.replace);
@@ -407,10 +494,17 @@ export function Router({
     };
   }, [registry]);
 
+  const contextValue = {
+    path: currentPath,
+    navigate,
+    params: routeParams,
+    loaderData,
+  };
+
   if (errorDetails) {
     return createElement(
       RouterContext.Provider,
-      { value: { path: currentPath, navigate, params: {} } },
+      { value: contextValue },
       createElement(ErrorPage as any, { error: errorDetails })
     );
   }
@@ -421,7 +515,7 @@ export function Router({
       const devRoutes = resolvedDevRoutes;
       return createElement(
         RouterContext.Provider,
-        { value: { path: currentPath, navigate, params: {} } },
+        { value: contextValue },
         createElement(NotFoundPage, { routes: devRoutes, currentPath } as any)
       );
     }
@@ -431,14 +525,14 @@ export function Router({
 
   return createElement(
     RouterContext.Provider,
-    { value: { path: currentPath, navigate, params: routeParams } },
+    { value: contextValue },
     createElement(
       ErrorBoundary,
       {
         fallback: createElement(ErrorPage as any, { error: errorDetails }),
         onError: err => setErrorDetails(err),
       },
-      createElement(LoadedComponent, null)
+      createElement(LoadedComponent, { loaderData })
     )
   );
 }

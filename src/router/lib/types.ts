@@ -18,4 +18,6 @@ export interface RouterContextValue {
   navigate: (to: string, options?: { replace?: boolean }) => void;
   /** Dynamic route parameters (e.g. { id: "123" }) */
   params: Record<string, string>;
+  /** Data returned from route loader (SSR hydration) */
+  loaderData?: any;
 }

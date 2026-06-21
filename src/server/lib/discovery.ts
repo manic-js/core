@@ -28,6 +28,11 @@ export interface RouteInfo {
   filePath: string;
 }
 
+async function isClientComponent(filePath: string): Promise<boolean> {
+  const source = await Bun.file(filePath).text();
+  return /^\s*['"]use client['"]/mu.test(source);
+}
+
 /**
  * Discovers all routes in the app/routes directory.
  *
@@ -160,14 +165,10 @@ export async function discoverErrorPages(
  * Generates the routes manifest content for dynamic imports.
  *
  * Creates a TypeScript module that exports route mappings for the client router.
- * Each route is mapped to a lazy import function.
+ * Each route is mapped to an object containing a lazy import function and a client component flag.
  *
  * @param routesDir - Directory to scan for routes (default: "app/routes")
  * @returns TypeScript content for the routes manifest
- *
- * @example
- * const manifest = await generateRoutesManifest();
- * // Returns "export const routes = {\n  \"/\": () => import(\"./routes/index.tsx\"),\n ...\n};"
  */
 export async function generateRoutesManifest(
   routesDir: string = 'app/routes'
@@ -175,16 +176,21 @@ export async function generateRoutesManifest(
   const routes = await discoverRoutes(routesDir);
   const errorPages = await discoverErrorPages(routesDir);
 
-  const routeEntries = routes
-    .toSorted((a, b) => a.path.localeCompare(b.path))
-    .map(r => {
-      const importPath = `./${r.filePath.replace('app/', '').replace(routeExtensionPattern, '')}`;
-      return `  "${r.path}": () => import("${importPath}"),`;
-    })
-    .join('\n');
+  const routeEntries = await Promise.all(
+    routes
+      .toSorted((a, b) => a.path.localeCompare(b.path))
+      .map(async r => {
+        const importPath = `./${r.filePath.replace('app/', '').replace(routeExtensionPattern, '')}`;
+        const client = await isClientComponent(r.filePath);
+        return `  "${r.path}": {
+    import: () => import("${importPath}"),
+    client: ${client ? 'true' : 'false'}
+  },`;
+      })
+  );
 
   return `export const routes = {
-${routeEntries}
+${routeEntries.join('\n')}
 };
 
 export const notFoundPage = ${errorPages.notFound ? '() => import("./routes/~404")' : 'undefined'};
@@ -247,11 +253,12 @@ ${urls}
 }
 
 async function touchManicEntry(
-  outPath: string = 'app/~routes.generated.ts'
+  outPath: string = 'app/~routes.generated.ts',
+  entryFile: string = '~manic.ts'
 ): Promise<void> {
-  // Derive ~manic.ts path from the output path's directory parent
+  // Derive entry file path from the output path's directory parent
   const appDir = outPath.slice(0, Math.max(0, outPath.lastIndexOf('/')));
-  const manicPath = `${appDir}/../~manic.ts`;
+  const manicPath = `${appDir}/../${entryFile}`;
   const file = Bun.file(manicPath);
   if (await file.exists()) {
     const content = await file.text();
@@ -289,7 +296,7 @@ export async function writeRoutesManifest(
     await Bun.write(outPath, content);
     lastManifestWrite = content;
   }
-  if (touch) await touchManicEntry(outPath);
+  if (touch) await touchManicEntry(outPath, '~manic.ts');
   return content;
 }
 

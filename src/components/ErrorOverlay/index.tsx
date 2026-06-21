@@ -256,6 +256,7 @@ export function ErrorOverlay({ error }: { error?: Error }) {
 
   const copyForAI = useCallback(() => {
     if (!error) return;
+    if (!navigator.clipboard?.writeText) return;
     const loc = frame
       ? `${frame.file}:${frame.line}:${frame.column}`
       : 'unknown';

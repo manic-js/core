@@ -1,5 +1,6 @@
 import { loadConfig } from '../../config';
 import { existsSync, watch } from 'fs';
+import { writeRoutesManifest } from '../../server/lib/discovery';
 import {
   brandTitle,
   cyan,
@@ -120,10 +121,36 @@ export async function dev({ port, network }: DevOptions): Promise<void> {
   };
 
   let config = await loadConfig(cwd);
-  debugLog('dev', `loaded config from ${cwd}`);
-  let initialPort = port ?? config.server?.port ?? 6070;
+  await writeRoutesManifest();
+  const isSsr = config.router?.ssr !== false;
+  debugLog('dev', `loaded config from ${cwd} ssr=${isSsr}`);
+  let initialPort = port ?? config.app?.port ?? 6070;
   const initialHost = network ? '0.0.0.0' : 'localhost';
   initialPort = await resolvePortConflict('dev', initialPort, '0.0.0.0');
+
+  // Detect LAN IP for network mode
+  let lanIp: string | null = null;
+  if (network) {
+    try {
+      const { execSync } = await import('child_process');
+      const result = execSync('ipconfig getifaddr en0', {
+        encoding: 'utf8',
+        timeout: 1000,
+      });
+      lanIp = result.trim() || null;
+    } catch {
+      try {
+        const { execSync } = await import('child_process');
+        const result = execSync(
+          "ifconfig | grep 'inet ' | grep -v 127.0.0.1 | head -1 | awk '{print $2}'",
+          { encoding: 'utf8', timeout: 1000, shell: true }
+        );
+        lanIp = result.trim() || null;
+      } catch {
+        // Could not detect LAN IP
+      }
+    }
+  }
   debugLog(
     'dev',
     `resolved startup host=${initialHost} port=${initialPort} network=${Boolean(network)}`
@@ -132,17 +159,17 @@ export async function dev({ port, network }: DevOptions): Promise<void> {
     console.log(`\n${brandTitle('dev')}`);
     console.log(divider());
     console.log(sectionTitle('Development Session', 'dev'));
-    console.log(
-      `  ${hint('URL:', `http://${initialHost === '0.0.0.0' ? 'localhost' : initialHost}:${initialPort}`)}`
-    );
+    const displayHost = initialHost === '0.0.0.0' ? 'localhost' : initialHost;
+    console.log(`  ${hint('Local:', `http://${displayHost}:${initialPort}`)}`);
+    if (lanIp) {
+      console.log(`  ${hint('Network:', `http://${lanIp}:${initialPort}`)}`);
+    }
     console.log(`  ${hint('Host:', initialHost)}`);
-    console.log(
-      `  ${hint('HMR:', config.server?.hmr === false ? 'off' : 'on')}`
-    );
+    console.log(`  ${hint('HMR:', 'on')}`);
     const mcpPlugin = config.plugins?.find(p => p.name === '@manicjs/mcp');
     if (mcpPlugin) {
       const mcpPath = (mcpPlugin as any).path ?? '/mcp';
-      const base = `http://${initialHost === '0.0.0.0' ? 'localhost' : initialHost}:${initialPort}`;
+      const base = `http://${displayHost}:${initialPort}`;
       console.log(`  ${hint('MCP:', `${base}${mcpPath}`)}`);
     }
     console.log(
@@ -166,24 +193,29 @@ export async function dev({ port, network }: DevOptions): Promise<void> {
       MANIC_TUI_SUPPRESS_SERVER_INFO: '1',
     };
 
+    const ssrEnabled = cfg.router?.ssr !== false;
+    const entryFile = ssrEnabled ? '~manic.ssr.ts' : '~manic.ts';
+    const useWatch = !ssrEnabled;
+
     const preloads = (cfg.plugins ?? []).flatMap(p =>
       p.preload ? ['--preload', resolveServeStaticPlugin(p.preload)] : []
     );
     await writeBunfig(cfg.plugins ?? []);
     debugLog(
       'dev',
-      `spawning bun watcher with ${preloads.length / 2} preload plugin(s) on port ${finalPort}`
+      `spawning ${useWatch ? 'bun watcher' : 'server'} with ${preloads.length / 2} preload plugin(s) on port ${finalPort} (ssr=${ssrEnabled})`
     );
 
-    return Bun.spawn(
-      ['bun', '--watch', '--no-clear-screen', ...preloads, '~manic.ts'],
-      {
-        stdout: 'inherit',
-        stderr: 'inherit',
-        stdin: 'ignore',
-        env,
-      }
-    );
+    const args = useWatch
+      ? ['bun', '--watch', '--no-clear-screen', ...preloads, entryFile]
+      : ['bun', '--no-clear-screen', ...preloads, entryFile];
+
+    return Bun.spawn(args, {
+      stdout: 'inherit',
+      stderr: 'inherit',
+      stdin: 'ignore',
+      env,
+    });
   };
 
   let proc = await spawn(config);
@@ -236,6 +268,7 @@ export async function dev({ port, network }: DevOptions): Promise<void> {
         if (!relPath || relPath.includes('~routes.generated.ts')) return;
         if (!/\.(tsx?|jsx?|css|mdx?)$/.test(relPath)) return;
         if (eventType !== 'rename') return;
+
         scheduleRestart(`new file graph change detected (${relPath})`);
       })
     : null;

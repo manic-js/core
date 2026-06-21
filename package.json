@@ -46,8 +46,8 @@
       "import": "./src/plugins/index.ts"
     },
     "./server": {
-      "types": "./src/server/index.ts",
-      "import": "./src/server/index.ts"
+      "types": "./src/server/index.tsx",
+      "import": "./src/server/index.tsx"
     },
     "./config": {
       "types": "./src/config/index.ts",
@@ -88,8 +88,8 @@
     "test:integration": "bun run test:e2e"
   },
   "dependencies": {
-    "@manicjs/bundler": "^0.0.1",
-    "@manicjs/tui": "^1.0.3",
+    "@manicjs/bundler": "^0.0.3",
+    "@manicjs/tui": "^1.0.4",
     "bun-plugin-tailwind": "^0.1.2",
     "hono": "^4.12.18",
     "kill-port": "^2.0.1",

@@ -116,6 +116,7 @@ export const createDemoFixture = async (port = 6070) => {
         dependencies: {
           manicjs: `file:${manicjsRoot}`,
           '@manicjs/api-docs': `file:${join(pluginsRoot, 'api-docs')}`,
+          '@manicjs/lint': `file:${join(pluginsRoot, 'lint')}`,
           '@manicjs/mcp': `file:${join(pluginsRoot, 'mcp')}`,
           '@manicjs/seo': `file:${join(pluginsRoot, 'seo')}`,
           '@manicjs/sitemap': `file:${join(pluginsRoot, 'sitemap')}`,

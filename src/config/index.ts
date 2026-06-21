@@ -1,19 +1,4 @@
-/** Deployment provider interface (Vercel, Cloudflare, Netlify, etc.). @see https://www.manicjs.tech/docs/core/providers-contract#interface */
-export interface ManicProvider {
-  name: string;
-  build(context: BuildContext): Promise<void>;
-}
-
-/** Context passed to deployment provider build functions */
-export interface BuildContext {
-  dist: string;
-  config: ManicConfig;
-  apiEntries: string[];
-  clientDir: string;
-  serverFile: string;
-}
-
-/** Sitemap auto-generation configuration */
+/** Sitemap auto-generation configuration settings */
 export interface SitemapConfig {
   /** Base URL for the site (e.g. "https://example.com") */
   hostname: string;
@@ -80,84 +65,91 @@ export interface ManicBuildPluginContext extends ManicPluginContext {
 /** Plugin interface for extending Manic */
 export interface ManicPlugin {
   name: string;
-  /**
-   * Absolute path to a Bun plugin script to preload during dev and build.
-   */
+  /** Absolute path to a Bun plugin script to preload during dev and build */
   preload?: string;
-  /**
-   * TOML snippet to append to bunfig.toml during dev (e.g. [serve.static] entries).
-   * The dev command collects these and writes them automatically.
-   */
+  /** TOML snippet to append to bunfig.toml during dev (e.g. [serve.static] entries) */
   bunfig?: string;
   configureServer?(ctx: ManicServerPluginContext): void | Promise<void>;
   build?(ctx: ManicBuildPluginContext): void | Promise<void>;
 }
 
+export interface AppConfig {
+  /** Application name, displayed in the browser title bar */
+  name?: string;
+  /** Application description, used for search engines and metadata */
+  description?: string;
+  /** Port to run the dev/prod server on @default 6070 */
+  port?: number;
+}
+
+export interface RouterConfig {
+  /** Enable View Transitions API for client-side navigation @default true */
+  viewTransitions?: boolean;
+  /** Preserve scroll position on navigation @default false */
+  preserveScroll?: boolean;
+  /** Scroll behavior when navigating @default "auto" */
+  scrollBehavior?: 'auto' | 'smooth';
+  /** Base URL path for the router @default "/" */
+  base?: string;
+  /** Use hash-based routing instead of history API @default false */
+  hash?: boolean;
+  /** Server-side rendering configuration. Set true for streaming SSR, false for SPA static shell @default true */
+  ssr?: boolean;
+}
+
+export interface BuildConfig {
+  /** Minify production bundles @default true */
+  minify?: boolean;
+  /** Generate sourcemaps @default "inline" */
+  sourcemap?: boolean | 'inline' | 'external';
+  /** Enable code splitting @default true */
+  splitting?: boolean;
+  /** Output directory for production builds @default ".manic" */
+  outdir?: string;
+  /** Assets subdirectory path @default "assets" */
+  assetsDir?: string;
+  /** Clean the output directory before building @default true */
+  clean?: boolean;
+  /** Target environment for the client bundle @default "browser" */
+  clientTarget?: string;
+  /** Target environment for the server bundle @default "bun" */
+  serverTarget?: string;
+  /** Keep class names and function names during minification @default false */
+  keepNames?: boolean;
+}
+
+export interface CompilerConfig {
+  /** Target ES version @default "esnext" in dev, "es2022" in prod */
+  target?: string;
+  /** Replace import extensions like .ts to .js @default true */
+  rewriteImportExtensions?: boolean;
+  /** Use React Fast Refresh @default true in dev */
+  refresh?: boolean;
+}
+
 /** Main configuration object for a Manic application. @see https://www.manicjs.tech/docs/api/config#top-level-options */
 export interface ManicConfig {
-  /** Server mode — "fullstack" includes Hono API support, "frontend" is pure SPA @default "fullstack" */
-  mode?: 'fullstack' | 'frontend';
-
-  app?: {
-    /** Application name, shown in browser title */
-    name?: string;
-  };
-
-  server?: {
-    /** Port to run the dev/prod server on @default 6070 */
-    port?: number;
-    /** Enable HMR in development @default true */
-    hmr?: boolean;
-  };
-
-  router?: {
-    /** Enable View Transitions API for client-side navigation @default true */
-    viewTransitions?: boolean;
-    /** Preserve scroll position on navigation @default false */
-    preserveScroll?: boolean;
-    /** Scroll behavior when navigating @default "auto" */
-    scrollBehavior?: 'auto' | 'smooth';
-  };
-
-  build?: {
-    /** Minify production bundles @default true */
-    minify?: boolean;
-    /** Generate sourcemaps @default "inline" */
-    sourcemap?: boolean | 'inline' | 'external';
-    /** Enable code splitting @default true */
-    splitting?: boolean;
-    /** Output directory for production builds @default ".manic" */
-    outdir?: string;
-  };
-
+  /** Application metadata and visual configuration */
+  app?: AppConfig;
+  /** Built-in Client Router behaviors */
+  router?: RouterConfig;
+  /** Production compiler packaging options */
+  build?: BuildConfig;
   /** Sitemap generation config, or false to disable */
   sitemap?: SitemapConfig | false;
-
   /** Custom OXC transform settings */
-  oxc?: {
-    /** Target ES version @default "esnext" in dev, "es2022" in prod */
-    target?: string;
-    /** Replace import extensions like .ts to .js @default true */
-    rewriteImportExtensions?: boolean;
-    /** Use React Fast Refresh @default true in dev */
-    refresh?: boolean;
-  };
-
-  /** Deployment providers (Vercel, Cloudflare, Netlify) */
-  providers?: ManicProvider[];
-
+  oxc?: CompilerConfig;
   /** Plugins for extending Manic */
   plugins?: ManicPlugin[];
 }
 
 const DEFAULT_CONFIG: ManicConfig = {
-  mode: 'fullstack',
-  app: { name: 'Manic App' },
-  server: { port: 6070, hmr: true },
+  app: { name: 'Manic App', port: 6070 },
   router: {
     viewTransitions: true,
     preserveScroll: false,
     scrollBehavior: 'auto',
+    ssr: true,
   },
   build: {
     minify: true,
@@ -253,14 +245,11 @@ export async function loadConfig(
         const userConfig = mod.default || mod;
 
         cachedConfig = {
-          mode: userConfig.mode ?? DEFAULT_CONFIG.mode,
           app: { ...DEFAULT_CONFIG.app, ...userConfig.app },
-          server: { ...DEFAULT_CONFIG.server, ...userConfig.server },
           router: { ...DEFAULT_CONFIG.router, ...userConfig.router },
           build: { ...DEFAULT_CONFIG.build, ...userConfig.build },
           sitemap: userConfig.sitemap === false ? false : userConfig.sitemap,
           oxc: { ...DEFAULT_CONFIG.oxc, ...userConfig.oxc },
-          providers: userConfig.providers,
           plugins: userConfig.plugins,
         };
 

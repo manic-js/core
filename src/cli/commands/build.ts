@@ -29,7 +29,11 @@ import { oxcPlugin } from '../plugins/oxc';
 const endStatusLine = () => process.stdout.write('\n');
 
 export async function build() {
+  process.env.NODE_ENV = 'production';
   const config = await loadConfig();
+  const { apiLoaderPlugin } = await import('../../plugins/lib/api');
+  await apiLoaderPlugin();
+
   const dist = config.build?.outdir ?? '.manic';
   const updateStatus = (m: string) =>
     process.stdout.write(`\r${statusSuccess(m)}${' '.repeat(24)}`);
@@ -66,7 +70,6 @@ export async function build() {
       clientPlugins: [oxcPlugin(), bunPluginTailwind],
       serverPlugins: [oxcPlugin()],
       plugins: config.plugins,
-      providers: config.providers,
       onPending: updatePending,
       onSuccess: updateStatus,
       onError: message => {
@@ -108,6 +111,12 @@ export async function build() {
   console.log(
     `${white('Client')}              ${formatSize(summary.clientSize).padStart(10)} ${dim(`(${summary.pageCount} routes)`)}`
   );
+  if (summary.ssrEnabled) {
+    const ssrSize = summary.ssrServerSize ?? 0;
+    console.log(
+      `${white('SSR Server')}          ${formatSize(ssrSize).padStart(10)} ${dim(`(${summary.ssrMode})`)}`
+    );
+  }
   console.log(divider());
   console.log(
     bold(

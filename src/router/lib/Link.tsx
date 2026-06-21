@@ -69,7 +69,8 @@ export function Link({
 }: LinkProps) {
   useRouter();
 
-  const isExternal = /^(https?:|\/\/|mailto:|tel:)/.test(to) || to.startsWith('#');
+  const isExternal =
+    /^(https?:|\/\/|mailto:|tel:)/.test(to) || to.startsWith('#');
 
   const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
     if (isExternal) return;

@@ -47,8 +47,8 @@ interface StartOptions {
  */
 export async function start({ port, network }: StartOptions): Promise<void> {
   const config = await loadConfig();
-  debugLog('start', `loaded config mode=${config.mode ?? 'fullstack'}`);
-  let finalPort = port ?? config.server?.port ?? 6070;
+  debugLog('start', `loaded config`);
+  let finalPort = port ?? config.app?.port ?? 6070;
   const host = network ? '0.0.0.0' : 'localhost';
   finalPort = await resolvePortConflict('start', finalPort, '0.0.0.0');
   debugLog('start', `resolved host=${host} port=${finalPort}`);
@@ -67,7 +67,13 @@ export async function start({ port, network }: StartOptions): Promise<void> {
     Bun.spawn([opener, url], { stdout: 'ignore', stderr: 'ignore' }).unref();
   };
 
-  if (!existsSync(`${dist}/server.js`)) {
+  const ssrEnabled = config.router?.ssr !== false;
+  const serverEntry =
+    ssrEnabled && existsSync(`${dist}/server-ssr.js`)
+      ? `${dist}/server-ssr.js`
+      : `${dist}/server.js`;
+
+  if (!existsSync(serverEntry)) {
     console.error(
       red(`\n✗ Build not found. Run ${cyan('bun run build')} first.\n`)
     );
@@ -95,8 +101,8 @@ export async function start({ port, network }: StartOptions): Promise<void> {
   console.log(divider());
 
   const spawnServer = () => {
-    debugLog('start', `spawning production server from ${dist}/server.js`);
-    return Bun.spawn(['bun', `${dist}/server.js`], {
+    debugLog('start', `spawning production server from ${serverEntry}`);
+    return Bun.spawn(['bun', serverEntry], {
       cwd: process.cwd(),
       env: {
         ...process.env,
