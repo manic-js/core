@@ -1,6 +1,6 @@
 {
   "name": "manicjs",
-  "version": "1.1.1",
+  "version": "2.0.0-alpha.0",
   "description": "Stupidly fast, Crazy light React framework powered by Bun and Hono",
   "keywords": [
     "bun",
@@ -85,11 +85,14 @@
     "ci:test": "bun run test:cli && bun run test:e2e",
     "ci:compliance": "test -f CODE_OF_CONDUCT.md && test -f LICENSE && test -f README.md",
     "test": "bun run test:cli",
-    "test:integration": "bun run test:e2e"
+    "test:integration": "bun run test:e2e",
+    "typecheck": "if [ -f tsconfig.json ]; then bunx --bun tsc --noEmit; elif [ -f src/index.ts ]; then bunx --bun tsc --noEmit --module esnext --moduleResolution bundler --target es2022 src/index.ts; elif [ -f index.ts ]; then bunx --bun tsc --noEmit --module esnext --moduleResolution bundler --target es2022 index.ts; else echo \"No TypeScript entrypoint found\"; exit 1; fi",
+    "lint": "bunx --bun oxlint --config .oxlintrc.json .",
+    "format:check": "bunx --bun oxfmt --check --config .oxfmt.json ."
   },
   "dependencies": {
-    "@manicjs/bundler": "^0.0.3",
-    "@manicjs/tui": "^1.0.4",
+    "@manicjs/bundler": "workspace:*",
+    "@manicjs/tui": "workspace:*",
     "bun-plugin-tailwind": "^0.1.2",
     "hono": "^4.12.18",
     "kill-port": "^2.0.1",
